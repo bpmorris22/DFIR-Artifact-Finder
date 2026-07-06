@@ -196,7 +196,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.2.1";
+var APP_VERSION = "0.3.0";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace — survives a crash where the UI can't be seen; overwritten each launch */
@@ -256,8 +256,8 @@ var CATALOG = [
    desc:"History / Web Data / Cookies / Login Data / places / ActivitiesCache — per-DB paths in detail; open in SQLECmd"},
   {key:"sqlx",    name:"Other SQLite",  outKey:"SQLiteMisc",gran:"host",   wrapper:"SQLECmd-Wrapper",       repo:"SQLECmd-Wrapper",       cli:true,
    desc:"Uncurated .sqlite files — open individually in SQLECmd-Wrapper if of interest"},
-  {key:"lnk",     name:"LNK files",     outKey:"LNK",       gran:"host",   wrapper:"", repo:"", cli:false,
-   desc:"Shortcut files — LECmd wrapper planned"},
+  {key:"lnk",     name:"LNK files",     outKey:"LNK",       gran:"host",   wrapper:"LECmd-Wrapper",         repo:"LECmd-Wrapper",         cli:true,
+   desc:"Shortcut files (.lnk) — parsed with LECmd; weaponized-shortcut / USB / origin triage"},
   {key:"jump",    name:"Jump lists",    outKey:"JumpLists", gran:"host",   wrapper:"", repo:"", cli:false,
    desc:"Automatic/Custom destinations — JLECmd wrapper planned"},
   {key:"rbin",    name:"Recycle Bin",   outKey:"RecycleBin",gran:"host",   wrapper:"", repo:"", cli:false,
