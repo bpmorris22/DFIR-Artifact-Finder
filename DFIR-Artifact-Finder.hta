@@ -29,7 +29,9 @@
 
   Outputs land in  <scanRoot>\_Processed\<Host>_<Artifact>_<yyyyMMdd_HHmmss>\  and an append-only
   manifest (artifact-finder-manifest.json) ties runs back to exact artifact paths, so already-processed
-  evidence shows as done on the next scan.
+  evidence shows as done on the next scan. [Open] on a processed/legacy row hands the newest output
+  (csv, or the .html report for MFT) back to its wrapper via the same CLI contract — auto-downloading
+  the wrapper first if it's missing.
 
   GOTCHAS:
    * Velociraptor paths contain literal % (C%3A, %5C). Anything written into a .bat gets batEsc (%%);
@@ -176,6 +178,7 @@
         <span class="st st-proc">&#10004; processed</span> <span class="st st-legacy">&#10004;? legacy output found</span>
         <span class="st st-notool">&mdash; no tool yet</span>
         &nbsp;&middot;&nbsp; [Process] opens the wrapper pre-filled for review; outputs go to _Processed\&lt;Host&gt;_&lt;Artifact&gt;_&lt;datetime&gt;\ inside the case folder.
+        [Open] on a processed row loads the newest output straight back into the wrapper's viewer (downloading the wrapper first if it's missing).
       </div>
     </div>
 
@@ -190,7 +193,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.1.2";
+var APP_VERSION = "0.2.0";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace — survives a crash where the UI can't be seen; overwritten each launch */
@@ -728,9 +731,11 @@ function actionButtons(r,i){
   var cat=r.cat, h="";
   if(cat.wrapper){
     var have=!!WPATH[cat.wrapper];
-    if(!have) h+='<button class="btn sm amber" data-act="get" data-r="'+i+'" title="Download '+esc(cat.wrapper)+'.hta from GitHub into this folder">Get tool</button>';
-    else if(cat.cli) h+='<button class="btn sm'+(r.status==="proc"?"":" primary")+'" data-act="proc" data-r="'+i+'">'+(r.status==="proc"?"Re-process":"Process")+'</button>';
-    else h+='<button class="btn sm amber" data-act="proc" data-r="'+i+'" title="CLI retrofit pending — opens the tool and copies the artifact path to your clipboard">Open tool</button>';
+    var done=(r.status==="proc"||r.status==="legacy");
+    if(done) h+='<button class="btn sm primary" data-act="view" data-r="'+i+'" title="Open the newest processed output in '+esc(cat.wrapper)+(have?'':' (downloads the tool from GitHub first)')+'">Open</button>';
+    if(!have && !done) h+='<button class="btn sm amber" data-act="get" data-r="'+i+'" title="Download '+esc(cat.wrapper)+'.hta from GitHub into this folder">Get tool</button>';
+    else if(have && cat.cli) h+='<button class="btn sm'+(done?"":" primary")+'" data-act="proc" data-r="'+i+'">'+(r.status==="proc"?"Re-process":"Process")+'</button>';
+    else if(have) h+='<button class="btn sm amber" data-act="proc" data-r="'+i+'" title="CLI retrofit pending — opens the tool and copies the artifact path to your clipboard">Open tool</button>';
   }
   h+='<button class="btn sm" data-act="open" data-r="'+i+'">Open folder</button>';
   return h;
@@ -880,11 +885,83 @@ function openFolder(row){
     else sh.Run('explorer.exe "'+parentDir(target)+'"',1,false);
   }catch(e){ setStatus("Could not open Explorer: "+e.message,"err"); }
 }
-function getTool(cat){
-  if(!cat.repo){ setStatus("No download source for "+cat.name,"err"); return; }
+/* ---------- open processed output back in its wrapper ----------
+   [Open] on a ✔ processed / ✔? legacy row: find the newest run output for that exact artifact
+   (manifest first, _Processed run-folder fallback second, legacy CSV last), download the wrapper
+   from GitHub if it's missing (no extra prompt — the click IS the consent), then launch
+   mshta "<Wrapper>.hta" "<output>" so the wrapper auto-loads it (family CLI: csv/html → view). */
+function outDirsNewestFirst(row){
+  var pl=row.path.toLowerCase(), ents=[], dirs=[], seen={}, i;
+  for(i=0;i<MANIFEST.length;i++){ var m=MANIFEST[i];
+    if(m && m.outDir && m.artifactPath && String(m.artifactPath).toLowerCase()===pl) ents.push(m); }
+  ents.sort(function(a,b){ var x=String(a.launchedUtc||""), y=String(b.launchedUtc||""); return x<y?1:(x>y?-1:0); });
+  for(i=0;i<ents.length;i++){ var d=String(ents[i].outDir), dl=d.toLowerCase();
+    if(!seen[dl]){ seen[dl]=1; dirs.push(d); } }
+  // manifest lost/foreign runs: reconstruct run folders from the CSVs seen under _Processed
+  var pref=("\\_processed\\"+sanit(row.host)+"_"+row.outKey+"_").toLowerCase(), fb=[];
+  for(i=0;i<PROCCSV.length;i++){ var idx=PROCCSV[i].indexOf(pref);
+    if(idx<0) continue;
+    var run=PROCCSV[i].substring(idx+12).split("\\")[0];       // 12 = length of "\_processed\"
+    var dir2=PROCCSV[i].substring(0,idx+12)+run;
+    if(!seen[dir2]){ seen[dir2]=1; fb.push(dir2); } }
+  var all=dirs.concat(fb);                                     // newest run wins, manifest or not
+  all.sort(function(a,b){ var x=String(a).match(/_(\d{8}_\d{6})$/), y=String(b).match(/_(\d{8}_\d{6})$/);
+    x=x?x[1]:""; y=y?y[1]:""; return x<y?1:(x>y?-1:0); });
+  return all;
+}
+function pickOpenTarget(row,dir){
+  var csv=[], html=[], i, best;
+  try{ var fso=new ActiveXObject("Scripting.FileSystemObject");
+    var e=new Enumerator(fso.GetFolder(dir).Files);
+    for(; !e.atEnd(); e.moveNext()){ var f=e.item(), n=f.Name+"";
+      if(/\.csv$/i.test(n)) csv.push({path:f.Path+"", name:n, size:f.Size-0});
+      else if(/\.html?$/i.test(n)) html.push({path:f.Path+"", name:n, size:f.Size-0}); }
+  }catch(er){}
+  if(row.key==="mft" && html.length){                          // MFTECmd's deliverable is the report
+    best=html[0]; for(i=1;i<html.length;i++){ if(html[i].size>best.size) best=html[i]; }
+    return {path:best.path, others:csv.length};
+  }
+  if(!csv.length){                                             // CSVs nested below the run folder
+    var ol=(String(dir)+"\\").toLowerCase(), sub=[];
+    for(i=0;i<PROCCSV.length;i++){ if(PROCCSV[i].substring(0,ol.length)===ol) sub.push(PROCCSV[i]); }
+    if(sub.length){ sub.sort(); return {path:sub[0], others:sub.length-1}; }
+    return null;
+  }
+  if(row.key==="srum"){                                        // SRUM: the exfil table is the headline
+    for(i=0;i<csv.length;i++){ if(/networkusage/i.test(csv[i].name)) return {path:csv[i].path, others:csv.length-1}; } }
+  best=csv[0]; for(i=1;i<csv.length;i++){ if(csv[i].size>best.size) best=csv[i]; }
+  return {path:best.path, others:csv.length-1};
+}
+function openProcessed(row){
+  var cat=row.cat;
+  if(!cat.wrapper){ setStatus("No wrapper tool for "+cat.name+" yet","err"); return; }
+  var target=null, dirs=outDirsNewestFirst(row), i;
+  for(i=0;i<dirs.length && !target;i++){ target=pickOpenTarget(row,dirs[i]); }
+  if(!target && row.status==="legacy"){
+    var lp=LEGACY[row.host.toLowerCase()+"|"+row.key];
+    if(lp && fileExists(lp)) target={path:lp, others:0, legacy:true};
+  }
+  if(!target){ setStatus("No processed output found for this artifact — rescan first, or [Re-process] it.","err"); return; }
+  var hta=WPATH[cat.wrapper]||"";
+  if(!hta){
+    setStatus(cat.wrapper+".hta not found — downloading it first…","muted");
+    if(!getTool(cat,true)) return;                             // getTool sets its own error status
+    hta=WPATH[cat.wrapper]||"";
+    if(!hta){ setStatus("Downloaded "+cat.wrapper+".hta but could not resolve it — see log.","err"); return; }
+  }
+  var cmd='mshta.exe "'+hta+'" "'+target.path+'"';
+  try{ new ActiveXObject("WScript.Shell").Run(cmd,1,false); }
+  catch(e){ setStatus("Could not launch "+cat.wrapper+": "+e.message,"err"); return; }
+  appendLog("Open output: "+cmd);
+  setStatus(cat.wrapper+" opened with "+baseName(target.path)
+    +(target.others>0?(" — "+target.others+" more file"+(target.others===1?"":"s")+" in the run folder (switch inside the tool)"):"")
+    +(target.legacy?" (legacy pre-finder output)":""),"ok");
+}
+function getTool(cat,auto){
+  if(!cat.repo){ setStatus("No download source for "+cat.name,"err"); return false; }
   var dest=wrapperPath(cat);
   var fn=cat.wrapper+".hta";
-  if(!confirm("Download "+fn+" from github.com/bpmorris22/"+cat.repo+"\ninto\n"+TOOLDIR+" ?")) return;
+  if(!auto && !confirm("Download "+fn+" from github.com/bpmorris22/"+cat.repo+"\ninto\n"+TOOLDIR+" ?")) return false;
   setStatus("Downloading "+cat.wrapper+"…","muted");
   var fso=new ActiveXObject("Scripting.FileSystemObject");
   var ps1=fso.GetSpecialFolder(2)+"\\af_get_"+uid()+".ps1";
@@ -900,14 +977,16 @@ function getTool(cat){
   L.push("  catch{ Write-Output ('miss: '+$u+' -> '+$_.Exception.Message) }");
   L.push("}");
   L.push("if(-not $ok){ throw 'download failed on both branches' }");
-  try{ var f=fso.CreateTextFile(ps1,true); f.Write(L.join("\r\n")); f.Close(); }catch(ew){ setStatus("Could not stage download script: "+ew.message,"err"); return; }
+  try{ var f=fso.CreateTextFile(ps1,true); f.Write(L.join("\r\n")); f.Close(); }catch(ew){ setStatus("Could not stage download script: "+ew.message,"err"); return false; }
   var r=runBat(['powershell -NoProfile -ExecutionPolicy Bypass -File "'+ps1+'" > "__LOG__" 2>&1'], true);
   try{ fso.DeleteFile(ps1); }catch(e0){}
   appendLog("--- download "+cat.wrapper+" ---\n"+r.log);
   if((r.log+"").indexOf("GET_OK")>=0 && fileExists(dest)){
-    setStatus(cat.wrapper+".hta installed — click Process again.","ok"); renderToolStrip(); render();
+    setStatus(cat.wrapper+".hta installed"+(auto?".":" — click Process again."),"ok"); renderToolStrip(); render();
+    return true;
   } else {
     setStatus("Download failed (offline, or the repo isn't published yet). Place "+cat.wrapper+".hta next to this app manually.","err");
+    return false;
   }
 }
 function renderToolStrip(){
@@ -1040,6 +1119,7 @@ function init(){
     if(act){ var ri=parseInt(t.getAttribute("data-r"),10); var vrows=window.__visRows||[];
       if(ri>=0&&ri<vrows.length){
         if(act==="proc") doProcess(vrows[ri]);
+        else if(act==="view") openProcessed(vrows[ri]);
         else if(act==="open") openFolder(vrows[ri]);
         else if(act==="get") getTool(vrows[ri].cat);
       } return; }
