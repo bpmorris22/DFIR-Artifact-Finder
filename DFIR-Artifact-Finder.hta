@@ -106,6 +106,8 @@
   .tk.have{border-color:#2a5a3a;color:#3fb950}
   .tk.miss{border-color:#8b3a3a;color:#ff6b6b}
   .tk .lnk{margin-left:5px}
+  .sumbad{color:#ff6b6b;font-size:10px;font-weight:600}
+  .sumok{color:#3fb950;font-size:10px}
   .dl{font-family:Consolas,"Courier New",monospace;font-size:11px;max-height:220px;overflow:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px;margin:4px 0;white-space:normal;word-break:break-word}
   .dl div{margin:1px 0}
   .kv{color:#8b949e}
@@ -169,11 +171,14 @@
 
   <!-- PROCESSED INVENTORY (toolkit-wide, visible before any scan) -->
   <div class="card hide" id="invCard">
-    <h3>Processed inventory <span class="muted" style="text-transform:none;letter-spacing:0" id="invSub"></span></h3>
+    <h3>Processed inventory <span class="muted" style="text-transform:none;letter-spacing:0" id="invSub"></span>
+      <button class="btn" id="triageBtn" style="float:right" title="Copy a per-host triage block (newest summary per tool) for case notes">Copy triage summary</button></h3>
     <div class="scroll" style="max-height:280px"><table id="invTbl"></table></div>
     <div class="muted" style="font-size:11px;margin-top:6px">
       Everything under <span class="mono">_Processed</span> next to this app &mdash; newest output date (file count) per host per tool,
       across all cases. Click a cell to open the newest output in its wrapper; <span class="mono">dir</span> opens the folder.
+      The <span class="sumbad">&#9873; red</span> / <span class="sumok">green</span> line is the tool's own triage headline
+      (flagged / max score, or Hayabusa crit/high) from the newest run &mdash; hover for the top hits.
     </div>
   </div>
 
@@ -225,7 +230,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.5.0";
+var APP_VERSION = "0.6.0";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace — survives a crash where the UI can't be seen; overwritten each launch */
@@ -565,7 +570,7 @@ function catForApp(app){ var al=String(app).toLowerCase();
   for(var i=0;i<CATALOG.length;i++){ var c=CATALOG[i];
     if(c.wrapper && appFor(c).toLowerCase()===al) return c; }
   return null; }
-function renderInventory(){
+function buildInvModel(){
   var pref=(TOOLDIR+"\\_processed\\").toLowerCase(), inv={}, hostDisp={}, i;
   for(i=0;i<TKFILES.length;i++){ var t=TKFILES[i];
     if(t.p.substring(0,pref.length)!==pref) continue;
@@ -577,25 +582,74 @@ function renderInventory(){
     e.n++; if(t.ms>e.ms){ e.ms=t.ms; e.mtime=t.mtime; }
   }
   var hlist=[]; for(var h in hostDisp) if(hostDisp.hasOwnProperty(h)) hlist.push(h); hlist.sort();
-  if(!hlist.length){ showEl("invCard",false); return; }
   var apps=invApps(), used=[];
   for(i=0;i<apps.length;i++){ var any=false, al2=apps[i].toLowerCase();
     for(var j=0;j<hlist.length;j++){ if(inv[hlist[j]+"|"+al2]){ any=true; break; } }
     if(any) used.push(apps[i]); }
-  var hh='<tr><th>Host</th>'; for(i=0;i<used.length;i++) hh+='<th>'+esc(used[i])+'</th>'; hh+='</tr>';
+  return {inv:inv, hostDisp:hostDisp, hlist:hlist, used:used};
+}
+function newestSummary(hostL, appL){
+  /* newest wrapper-written triage summary for this host+tool (runinfo entries carry host/app) */
+  var best=null;
+  for(var i=0;i<RUNINFO.length;i++){ var e=RUNINFO[i];
+    if(!e || !e.summary) continue;
+    if(String(e.host||"").toLowerCase()!==hostL || String(e.app||"").toLowerCase()!==appL) continue;
+    if(!best || String(e.finishedUtc||"")>String(best.finishedUtc||"")) best=e; }
+  return best?best.summary:null;
+}
+function sumText(s){
+  if(!s) return "";
+  if(s.detections!=null) return (s.crit||0)+" crit / "+(s.high||0)+" high · "+nf(s.detections)+" detections";
+  if(s.entries!=null) return (s.flagged||0)+" flagged of "+nf(s.entries)+(s.maxScore?(" (max "+s.maxScore+")"):"")
+    +(s.bytesOutMB!=null?(" · "+nf(s.bytesOutMB)+" MB out"):"");   // SrumECmd exfil headline
+  return "";
+}
+function sumHot(s){ return s ? ((s.detections!=null) ? ((s.crit||0)+(s.high||0)) : (s.flagged||0)) : 0; }
+function sumBadge(s){
+  if(!s) return "";
+  var hot=sumHot(s)>0, tip=(s.top&&s.top.length)?(" — top: "+s.top.join(", ")):"";
+  if(s.detections!=null)
+    return '<div class="'+(hot?"sumbad":"sumok")+'" title="'+esc(sumText(s)+tip)+'">'+(s.crit||0)+'C/'+(s.high||0)+'H &middot; '+nf(s.detections)+' det</div>';
+  return '<div class="'+(hot?"sumbad":"sumok")+'" title="'+esc(sumText(s)+tip)+'">&#9873; '+(s.flagged||0)+'/'+nf(s.entries)+(s.maxScore?(' &middot; max '+s.maxScore):'')+'</div>';
+}
+function renderInventory(){
+  var mdl=buildInvModel(), i;
+  if(!mdl.hlist.length){ showEl("invCard",false); return; }
+  var hh='<tr><th>Host</th>'; for(i=0;i<mdl.used.length;i++) hh+='<th>'+esc(mdl.used[i])+'</th>'; hh+='</tr>';
   var rows=hh;
-  for(var r=0;r<hlist.length;r++){ var hl2=hlist[r];
-    var tr='<tr><td><b>'+esc(hostDisp[hl2])+'</b></td>';
-    for(i=0;i<used.length;i++){ var cell=inv[hl2+"|"+used[i].toLowerCase()];
-      var ref=esc(hostDisp[hl2])+'|'+esc(used[i]);
-      tr+='<td>'+(cell
-        ?('<span class="lnk" data-invopen="'+ref+'" title="Open the newest output in '+esc(used[i])+'-Wrapper">'+esc(cell.mtime||"?")+' ('+cell.n+')</span> <span class="lnk muted" data-invdir="'+ref+'" title="Open this folder in Explorer">dir</span>')
+  for(var r=0;r<mdl.hlist.length;r++){ var hl2=mdl.hlist[r], hostHot=0;
+    var tds='';
+    for(i=0;i<mdl.used.length;i++){ var al3=mdl.used[i].toLowerCase(), cell=mdl.inv[hl2+"|"+al3];
+      var ref=esc(mdl.hostDisp[hl2])+'|'+esc(mdl.used[i]);
+      var s=cell?newestSummary(hl2,al3):null;
+      hostHot+=sumHot(s);
+      tds+='<td>'+(cell
+        ?('<span class="lnk" data-invopen="'+ref+'" title="Open the newest output in '+esc(mdl.used[i])+'-Wrapper">'+esc(cell.mtime||"?")+' ('+cell.n+')</span> <span class="lnk muted" data-invdir="'+ref+'" title="Open this folder in Explorer">dir</span>'+sumBadge(s))
         :'<span class="muted">&mdash;</span>')+'</td>'; }
-    rows+=tr+'</tr>';
+    rows+='<tr><td><b>'+esc(mdl.hostDisp[hl2])+'</b>'+(hostHot>0?(' <span class="sumbad" title="Flagged / critical+high findings across this host\'s processed tools">&#9873; '+hostHot+'</span>'):'')+'</td>'+tds+'</tr>';
   }
   $("invTbl").innerHTML=rows;
-  $("invSub").innerHTML="&mdash; "+nf(hlist.length)+" host"+(hlist.length===1?"":"s")+" &middot; "+esc(TOOLDIR+"\\_Processed");
+  $("invSub").innerHTML="&mdash; "+nf(mdl.hlist.length)+" host"+(mdl.hlist.length===1?"":"s")+" &middot; "+esc(TOOLDIR+"\\_Processed");
   showEl("invCard",true);
+}
+function copyTriage(){
+  /* per-host triage block for case notes — newest summary per tool, plain text */
+  var mdl=buildInvModel();
+  if(!mdl.hlist.length){ setStatus("Nothing processed yet — no triage summary to copy.","err"); return; }
+  var out=["Triage summary — "+TOOLDIR+"\\_Processed — "+nowIso()];
+  for(var r=0;r<mdl.hlist.length;r++){ var hl2=mdl.hlist[r];
+    out.push(mdl.hostDisp[hl2]);
+    for(var i=0;i<mdl.used.length;i++){ var al3=mdl.used[i].toLowerCase(), cell=mdl.inv[hl2+"|"+al3];
+      if(!cell) continue;
+      var s=newestSummary(hl2,al3);
+      var line="  "+mdl.used[i]+": ";
+      if(s){ line+=sumText(s); if(s.top&&s.top.length) line+=" — top: "+s.top.join(", "); }
+      else line+=cell.n+" output file(s), newest "+(cell.mtime||"?")+" (no summary — pre-summary run or viewer-only tool)";
+      out.push(line);
+    }
+  }
+  try{ window.clipboardData.setData("Text", out.join("\r\n")); setStatus("Copied triage summary for "+mdl.hlist.length+" host(s) to clipboard","ok"); }
+  catch(e){ setStatus("Copy failed: "+e.message,"err"); }
 }
 function invOpen(key){
   var sp=key.split("|"), host=sp[0], app=sp[1];
@@ -1455,6 +1509,7 @@ function init(){
   $("clearBtn").onclick=function(){ $("q").value=""; QUERY=""; CURTYPE="all"; CURSTATUS="all"; CURHOST=""; $("hostSel").value=""; render(); };
   $("exportBtn").onclick=exportView;
   $("copyBtn").onclick=copyNotes;
+  $("triageBtn").onclick=copyTriage;
   $("detClose").onclick=closeDetail;
 
   /* click delegation: actions, chips, group headers, rows, copy links, tool-strip get */
@@ -1587,7 +1642,7 @@ window.onload=function(){ init(); try{ window.setTimeout(checkSelfUpdate,600); }
       <li>All processing lands in <code>_Processed\&lt;Hostname&gt;\&lt;App&gt;\</code> <b>next to this app</b> (family convention — the wrappers use the same layout when run standalone). One folder per host per tool; the tools' datetime-stamped filenames keep repeat runs apart.</li>
       <li><b>Target hostname</b> is required before processing. It is guessed from the scan (<code>Collection-&lt;host&gt;-…</code> segments or the folder layout) — overwrite it if wrong. Multi-host scans use each row's own detected host; the field covers rows whose host could not be derived.</li>
       <li>An append-only manifest (<code>_Processed\artifact-finder-manifest.json</code>) ties every launch to its exact artifact path, and each wrapper writes a <code>runinfo.json</code> into its output folder after every run — so processed state survives even if the manifest is lost. Old-convention output (<code>&lt;scanRoot&gt;\_Processed\&lt;Host&gt;_&lt;Artifact&gt;_&lt;stamp&gt;</code>) is still recognised for status and [Open], never written.</li>
-      <li>The <b>Processed inventory</b> card (shown before any scan) is the hosts &times; tools view of that tree across all cases — click a cell to reopen the newest output in its wrapper.</li>
+      <li>The <b>Processed inventory</b> card (shown before any scan) is the hosts &times; tools view of that tree across all cases — click a cell to reopen the newest output in its wrapper. Each cell also shows the tool's own <b>triage headline</b> from its newest run (flagged count / max score; Hayabusa crit/high) — red means findings; hover for the top hits; <b>Copy triage summary</b> puts the per-host block on the clipboard for case notes.</li>
       <li><b>IOC.txt</b> next to this app (see the toolkit strip — create/edit) is the shared IOC list: one term per line, <code>#</code> comments; every wrapper auto-loads it at launch and merges it into its own IOC/keyword scoring. One paste covers the whole engagement.</li>
     </ul>
     <h3>Command line</h3>
