@@ -16,7 +16,8 @@ It never opens or parses artifact contents itself — it is a **scanner + regist
 | SQLite databases | [SQLECmd-Wrapper](https://github.com/bpmorris22/SQLECmd-Wrapper) |
 | LNK files | [LECmd-Wrapper](https://github.com/bpmorris22/LECmd-Wrapper) |
 | Jump lists (Automatic/Custom destinations) | [JLECmd-Wrapper](https://github.com/bpmorris22/JLECmd-Wrapper) |
-| Registry / `$Recycle.Bin` / `$UsnJrnl` / SUM / WebCache | flagged on the board (no wrapper yet) |
+| Registry hives (SYSTEM/SOFTWARE/SAM/SECURITY/NTUSER/UsrClass) | [RECmd-Wrapper](https://github.com/bpmorris22/RECmd-Wrapper) |
+| `$Recycle.Bin` / `$UsnJrnl` / SUM / WebCache | flagged on the board (no wrapper yet) |
 
 ## How it works
 
@@ -25,7 +26,7 @@ It never opens or parses artifact contents itself — it is a **scanner + regist
    ```
    mshta.exe "<Tool>-Wrapper.hta" "<artifactPath>" "<outDir>" [/auto]
    ```
-   The wrapper opens in its own window so you can review and start processing there. An opt-in **bulk** checkbox adds `/auto` (process immediately) for launch-many sessions — default **off**.
+   The wrapper opens in its own window so you can review and start processing there. An opt-in **bulk** checkbox adds `/auto` (process immediately) for launch-many sessions — default **off**. **Process all (N)** on a host's header row queues every unprocessed tool-ready artifact of that host with `/auto` — one launch every 3 seconds — so a fresh collection goes from scanned to fully processing in one click.
 3. **Skip what's done** — outputs land in `_Processed\<Hostname>\<App>\` **next to this app** (the mandatory **Target hostname** field names the folder — guessed from the scan, overwrite it if wrong; the wrappers use the same layout when run standalone), and an append-only manifest ties runs back to exact artifact paths, so already-processed evidence shows as **done** on the next scan and isn't re-run by accident. **Open** on a processed row loads the newest output straight back into its wrapper — no reprocessing. Old-convention output (`<scanRoot>\_Processed\<Host>_<Artifact>_<stamp>\`) is still recognised, never written.
 4. **Processed inventory** — a hosts × tools grid over `_Processed`, shown before any scan: newest output date (file count) per host per tool across all cases. Click a cell to reopen the newest output in its wrapper; `dir` opens the folder. Each cell also carries the tool's own **triage headline** from its newest run — flagged count / max score (red when there are findings, hover for the top hits; Hayabusa shows crit/high counts, SRUM adds MB sent) — and **Copy triage summary** puts a per-host plain-text block on the clipboard for case notes. Wrappers append a `runinfo.json` provenance entry (now including that summary) after every run, so even standalone runs show up bound to their exact source artifact.
 5. **Shared IOC list** — `IOC.txt` next to this app (create/edit it from the toolkit strip): one term per line, `#` comments; every wrapper auto-loads it at launch, so one paste covers the whole engagement.

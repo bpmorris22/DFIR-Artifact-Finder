@@ -230,7 +230,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.6.0";
+var APP_VERSION = "0.7.0";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace — survives a crash where the UI can't be seen; overwritten each launch */
@@ -302,8 +302,8 @@ var CATALOG = [
    desc:"$Recycle.Bin contents ($I/$R) — wrapper planned"},
   {key:"usnj",    name:"$UsnJrnl $J",   outKey:"UsnJrnl",   gran:"file",   wrapper:"", repo:"", cli:false,
    desc:"USN journal — MFTECmd-Wrapper support planned"},
-  {key:"reg",     name:"Registry hives",outKey:"Registry",  gran:"host",   wrapper:"", repo:"", cli:false,
-   desc:"SYSTEM / SOFTWARE / SAM / SECURITY / NTUSER / UsrClass — RECmd wrapper planned"},
+  {key:"reg",     name:"Registry hives",outKey:"Registry",  gran:"host",   wrapper:"RECmd-Wrapper", repo:"RECmd-Wrapper", cli:true,
+   desc:"SYSTEM / SOFTWARE / SAM / SECURITY / NTUSER / UsrClass — persistence triage via RECmd batch (Kroll)"},
   {key:"sum",     name:"SUM database",  outKey:"SUM",       gran:"file",   wrapper:"", repo:"", cli:false,
    desc:"User Access Logging (Current.mdb) — wrapper planned"},
   {key:"webc",    name:"WebCache",      outKey:"WebCache",  gran:"file",   wrapper:"", repo:"", cli:false, hidden:true,
@@ -1010,9 +1010,13 @@ function render(){
       curHost=hk;
       if(!(hk in HOPEN)) HOPEN[hk]=DEFOPEN;
       var open=!!HOPEN[hk];
-      var cnt=0, done=0;
-      for(var j=0;j<rows.length;j++){ var rj=rows[j]; if((rj.host+(rj.coll?("|"+rj.coll):""))===hk){ cnt++; if(rj.status==="proc") done++; } }
-      html+='<tr class="grp" data-grp="'+esc(hk)+'"><td colspan="7">'+(open?"&#9660; ":"&#9654; ")
+      var cnt=0, done=0, elig=0;
+      for(var j=0;j<rows.length;j++){ var rj=rows[j]; if((rj.host+(rj.coll?("|"+rj.coll):""))===hk){ cnt++;
+        if(rj.status==="proc") done++;
+        if(rj.cat.wrapper && rj.cat.cli && (rj.status==="none"||rj.status==="legacy")) elig++; } }
+      html+='<tr class="grp" data-grp="'+esc(hk)+'"><td colspan="7">'
+        +(elig>0?('<button class="btn" data-pah="'+esc(hk)+'" style="float:right;font-weight:normal" title="Launch every unprocessed tool-ready artifact in this group with /auto — one every 3 seconds, each in its own wrapper window">Process all ('+elig+')</button>'):'')
+        +(open?"&#9660; ":"&#9654; ")
         +esc(r.host)+(r.coll?(' <span class="muted" style="font-weight:normal">'+esc(r.coll)+'</span>'):'')
         +' &nbsp;<span class="muted" style="font-weight:normal">'+nf(cnt)+' artifact'+(cnt===1?"":"s")+' &middot; '+nf(done)+' processed</span></td></tr>';
     }
@@ -1192,16 +1196,65 @@ function doProcess(row){
     try{ $("hostName").focus(); }catch(ef){}
     return;
   }
+  if(!launchCli(row,false)) return;   // launchCli reports its own errors via setStatus/log
+  setStatus(cat.wrapper+" launched for "+row.host+" "+row.label+" — review inside the tool, then start it. Rescan afterwards to see ✔.","ok");
+  render(); if(DETROW===row) renderDetail(row);
+}
+/* shared launch core — used by [Process] (honours the bulk checkbox) and Process-all (forces /auto) */
+function launchCli(row, forceAuto){
+  var cat=row.cat;
+  var hta=WPATH[cat.wrapper]||"";
+  if(!hta){
+    if(!getTool(cat,true)) return false;               // auto-download: the click IS the consent
+    hta=WPATH[cat.wrapper]||"";
+    if(!hta){ setStatus("Could not resolve "+cat.wrapper+".hta — see log.","err"); return false; }
+  }
+  var host=hostFor(row);
+  if(!host){ appendLog("Skipped (no hostname): "+row.path); return false; }
   var outDir=TOOLDIR+"\\_Processed\\"+host+"\\"+appFor(cat);
-  if(!ensureFolder(outDir)){ setStatus("Could not create output folder: "+outDir,"err"); return; }
-  var cmd='mshta.exe "'+hta+'" "'+row.path+'" "'+outDir+'"'+($("optAuto").checked?" /auto":"");
-  try{ sh.Run(cmd,1,false); }
-  catch(e3){ setStatus("Could not launch "+cat.wrapper+": "+e3.message,"err"); return; }
+  if(!ensureFolder(outDir)){ setStatus("Could not create output folder: "+outDir,"err"); return false; }
+  var cmd='mshta.exe "'+hta+'" "'+row.path+'" "'+outDir+'"'+((forceAuto||$("optAuto").checked)?" /auto":"");
+  try{ new ActiveXObject("WScript.Shell").Run(cmd,1,false); }
+  catch(e3){ setStatus("Could not launch "+cat.wrapper+": "+e3.message,"err"); return false; }
   appendManifest({artifactPath:row.path, key:row.key, host:row.host, hostUsed:host, app:appFor(cat), wrapper:cat.wrapper, outDir:outDir, launchedUtc:nowIso(), cmd:cmd});
   row.status="launch"; row.statusDate=nowIso().substring(0,16).replace("T"," "); row.lastOut=outDir;
-  setStatus(cat.wrapper+" launched for "+row.host+" "+row.label+" — review inside the tool, then start it. Rescan afterwards to see ✔.","ok");
   appendLog("Launched: "+cmd);
-  render(); if(DETROW===row) renderDetail(row);
+  return true;
+}
+/* ---------- Process all for a host group (v0.7) ----------
+   Queues every unprocessed tool-ready artifact of the group with /auto — one launch every
+   3 seconds so mshta windows and tool consoles stagger instead of stampeding. */
+var PAH=null;   // {hk, rows, i, ok}
+function processAllHost(hk){
+  if(PAH){ setStatus("A Process-all queue is already running ("+PAH.hk.split("|")[0]+") — let it finish.","err"); return; }
+  var rows=[], i;
+  for(i=0;i<ROWS.length;i++){ var r=ROWS[i];
+    if((r.host+(r.coll?("|"+r.coll):""))!==hk) continue;
+    if(!r.cat.wrapper || !r.cat.cli) continue;
+    if(r.status==="proc"||r.status==="launch") continue;
+    rows.push(r); }
+  if(!rows.length){ setStatus("Nothing to process in this group — every tool-ready artifact is already processed or launched.","muted"); return; }
+  var hostName=hk.split("|")[0];
+  if(!hostFor(rows[0])){
+    setStatus("Target hostname is required first — type it in the box above, then Process all again.","err");
+    try{ $("hostName").focus(); }catch(e){} return;
+  }
+  if(!confirm("Process ALL for "+hostName+"?\n\n"+rows.length+" artifact(s) will be launched with /auto — one every 3 seconds, each opening its own wrapper window and starting immediately.")) return;
+  PAH={hk:hk, rows:rows, i:0, ok:0};
+  pahNext();
+}
+function pahNext(){
+  if(!PAH) return;
+  var r=PAH.rows[PAH.i];
+  if(launchCli(r,true)) PAH.ok++;
+  PAH.i++;
+  render();
+  if(PAH.i>=PAH.rows.length){
+    setStatus("Process all: "+PAH.ok+" of "+PAH.rows.length+" launched for "+PAH.hk.split("|")[0]+" — the wrappers are running; rescan when they finish to see ✔.","ok");
+    PAH=null; return;
+  }
+  setStatus("Process all: launching "+(PAH.i+1)+"/"+PAH.rows.length+" for "+PAH.hk.split("|")[0]+"…","muted");
+  window.setTimeout(pahNext, 3000);
 }
 function openFolder(row){
   var target=(row.cat.gran==="folder"||row.cat.gran==="host")?row.path:row.path;
@@ -1522,6 +1575,8 @@ function init(){
     if(gk){ getTool(CATBYKEY[gk]); return; }
     var im=t.getAttribute("data-ioc");
     if(im){ iocEdit(im); return; }
+    var pah=t.getAttribute("data-pah");
+    if(pah!=null && pah!==""){ processAllHost(pah); return; }
     var io=t.getAttribute("data-invopen");
     if(io){ invOpen(io); return; }
     var idr=t.getAttribute("data-invdir");
@@ -1635,6 +1690,7 @@ window.onload=function(){ init(); try{ window.setTimeout(checkSelfUpdate,600); }
     <ul>
       <li>Keep the wrapper <code>.hta</code>s next to this app (the toolkit folder) — the strip at the bottom of Scan control shows what's present; missing ones download from GitHub on demand.</li>
       <li>Pick a case folder &rarr; <b>Scan</b>. Confirm the <b>Target hostname</b> guess (it names the output folders). Click <b>[Process]</b> on a row, review inside the wrapper, run it, rescan to see &#10004;.</li>
+      <li><b>Process all (N)</b> on a host's header row queues every unprocessed tool-ready artifact of that host with <code>/auto</code> — one launch every 3 seconds, each in its own wrapper window. Come back and rescan when the consoles are done.</li>
       <li><b>[Open]</b> on a processed row hands the newest output straight back to the wrapper — no reprocessing.</li>
     </ul>
     <h3>Where outputs go</h3>
