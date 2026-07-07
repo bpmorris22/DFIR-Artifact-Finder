@@ -122,6 +122,10 @@
   .modal code{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:2px 6px;font-family:Consolas,monospace;font-size:12px}
   .modal .x{float:right;cursor:pointer;color:#8b949e;font-size:22px;line-height:1}.modal .x:hover{color:#e6edf3}
   .modal .gh{font-family:Consolas,monospace;font-size:12px}
+  .ioctbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  .ioctbl th{text-align:left;color:#8b949e;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:3px 5px;border-bottom:1px solid #30363d}
+  .ioctbl td{padding:2px 5px;vertical-align:middle}
+  .ioctbl input.txt,.ioctbl select{width:100%;box-sizing:border-box;margin:0}
   .lnk{cursor:pointer;color:#58a6ff}
   .lnk:hover{text-decoration:underline}
   .sep{display:inline-block;width:1px;height:18px;background:#30363d;margin:0 6px;vertical-align:middle}
@@ -230,7 +234,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.7.0";
+var APP_VERSION = "0.8.0";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace — survives a crash where the UI can't be seen; overwritten each launch */
@@ -1403,35 +1407,187 @@ function renderToolStrip(){
       +(p?"":' <span class="lnk" data-get="'+esc(c.key)+'">get</span>')
       +(c.cli?'':' <span class="muted" title="CLI retrofit pending — Process opens it bare with the path on your clipboard">(manual)</span>')+'</span>';
   }
-  /* shared IOC list — every wrapper auto-loads IOC.txt from the toolkit folder at launch */
-  var iocP=TOOLDIR+"\\IOC.txt";
-  if(fileExists(iocP)){
-    var iocN=0;
-    try{ var ls=readUtf8(iocP).split(/\r?\n/);
-      for(var x=0;x<ls.length;x++){ var L=trimStr(ls[x]); if(L && L.charAt(0)!=="#") iocN++; } }catch(ei){}
-    h+='<span class="tk have" title="Shared IOC list — every wrapper auto-loads it at launch ('+esc(iocP)+')">IOC.txt &#10004; '+iocN+' term'+(iocN===1?"":"s")+' <span class="lnk" data-ioc="edit">edit</span></span>';
+  /* shared IOC list — IOC.csv is the editable source; every wrapper auto-loads the flattened IOC.txt at launch */
+  if(fileExists(iocCsvPath()) || fileExists(iocTxtPath())){
+    var iocN=iocCount(); if(iocN<0) iocN=0;
+    h+='<span class="tk have" title="Shared IOC list — IOC.csv is the editable source (Value/Type/Note/Case); every wrapper auto-loads the generated IOC.txt at launch">IOC &#10004; '+iocN+' term'+(iocN===1?"":"s")+' <span class="lnk" data-ioc="edit">edit</span></span>';
   } else {
-    h+='<span class="tk miss" title="No shared IOC list yet — one term per line; every wrapper auto-loads it at launch">IOC.txt missing <span class="lnk" data-ioc="new">create</span></span>';
+    h+='<span class="tk miss" title="No shared IOC list yet — add typed, annotated IOCs; saved as IOC.csv and flattened to IOC.txt for every wrapper">IOC list &mdash; <span class="lnk" data-ioc="new">create</span></span>';
   }
   $("toolStrip").innerHTML=h;
 }
-function iocEdit(mode){
-  var p=TOOLDIR+"\\IOC.txt";
-  if(mode==="new" && !fileExists(p)){
-    try{ writeUtf8(p,
-      "# Toolkit IOC list — one term per line, matched case-insensitively by every wrapper in the family.\r\n"
-      +"# Lines starting with # are comments. Keep it case-generic if this toolkit folder is ever shared.\r\n"
-      +"# Examples (delete these):\r\n"
-      +"#   evil.exe\r\n"
-      +"#   203.0.113.7\r\n"
-      +"#   baddomain.example\r\n"); }
-    catch(e){ setStatus("Could not create "+p+": "+e.message,"err"); return; }
-    appendLog("Created toolkit IOC.txt template: "+p);
+/* ---------- IOC editor: IOC.csv (editable source) -> IOC.txt (wire format the wrappers read) ----------
+   The Finder reads no artifact contents itself, so it carries no CSV parser. IOC.csv is the sole
+   exception — parseCSV/parseCSVLine/countQuotes are copied VERBATIM from PECmd-Wrapper.hta (RFC4180-ish:
+   quoted fields, doubled quotes, embedded commas/newlines). */
+function countQuotes(s){ var c=0, idx=-1; while((idx=s.indexOf('"',idx+1))>=0) c++; return c; }
+function parseCSVLine(line){
+  if(line.indexOf('"')<0) return line.split(",");   // fast path: no quotes → plain split
+  var out=[], field="", q=false, i=0, n=line.length;
+  while(i<n){ var c=line.charAt(i);
+    if(q){ if(c==='"'){ if(line.charAt(i+1)==='"'){ field+='"'; i+=2; continue; } q=false; i++; continue; } field+=c; i++; continue; }
+    if(c==='"'){ q=true; i++; continue; }
+    if(c===','){ out.push(field); field=""; i++; continue; }
+    field+=c; i++;
   }
+  out.push(field); return out;
+}
+function parseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.substring(1);
+  var lines=text.split("\n"), rows=[], i=0, n=lines.length;
+  while(i<n){
+    var line=lines[i]; i++;
+    // a quoted field may contain a newline → merge continuation lines until quotes balance
+    var qc=countQuotes(line);
+    while((qc%2)===1 && i<n){ line+="\n"+lines[i]; qc+=countQuotes(lines[i]); i++; }
+    if(line.charAt(line.length-1)==='\r') line=line.substring(0,line.length-1);
+    if(line==="") continue;
+    rows.push(parseCSVLine(line));
+  }
+  return rows;
+}
+
+var IOC_ROWS=[];   // in-memory editor model: [{v,t,n,c}]
+var IOC_TYPES=["hash","ip","domain","filename","path","keyword"];
+function iocCsvPath(){ return TOOLDIR+"\\IOC.csv"; }
+function iocTxtPath(){ return TOOLDIR+"\\IOC.txt"; }
+function iocIsIpv4(v){ if(!/^\d{1,3}(\.\d{1,3}){3}$/.test(v)) return false;
+  var p=v.split("."); for(var i=0;i<4;i++){ if(parseInt(p[i],10)>255) return false; } return true; }
+function iocNormType(t){ t=trimStr(String(t==null?"":t)).toLowerCase();
+  for(var i=0;i<IOC_TYPES.length;i++){ if(IOC_TYPES[i]===t) return t; } return "keyword"; }
+
+function iocLoadCsv(){
+  var arr=[], p=iocCsvPath();
+  if(!fileExists(p)) return arr;
+  var raw; try{ raw=parseCSV(readUtf8(p)); }catch(e){ return arr; }
+  if(!raw || !raw.length) return arr;
+  var start=0, h=raw[0];
+  if(h && h.length && trimStr(h[0]).toLowerCase()==="value") start=1;   // skip header row
+  for(var i=start;i<raw.length;i++){ var rw=raw[i];
+    var v=trimStr(rw[0]!=null?rw[0]:"");
+    if(v==="") continue;
+    arr.push({ v:v, t:iocNormType(rw[1]), n:(rw[2]!=null?rw[2]:""), c:(rw[3]!=null?rw[3]:"") });
+  }
+  return arr;
+}
+/* §3 legacy import: any non-comment IOC.txt line not already present becomes a keyword row (nothing is lost). */
+function iocImportLegacy(arr){
+  var p=iocTxtPath(); if(!fileExists(p)) return 0;
+  var have={}; for(var i=0;i<arr.length;i++) have[arr[i].v.toLowerCase()]=1;
+  var ls; try{ ls=readUtf8(p).split(/\r?\n/); }catch(e){ return 0; }
+  var added=0;
+  for(var x=0;x<ls.length;x++){ var L=trimStr(ls[x]);
+    if(!L || L.charAt(0)==="#") continue;
+    if(have[L.toLowerCase()]) continue;
+    arr.push({ v:L, t:"keyword", n:"imported from IOC.txt", c:"" });
+    have[L.toLowerCase()]=1; added++;
+  }
+  return added;
+}
+function iocSaveCsv(arr){
+  var lines=["Value,Type,Note,Case"];
+  for(var i=0;i<arr.length;i++){ var r=arr[i];
+    lines.push(cq(r.v)+","+cq(r.t)+","+cq(r.n)+","+cq(r.c)); }
+  writeUtf8(iocCsvPath(), lines.join("\r\n")+"\r\n");
+}
+/* §2 flatten: IOC.txt = generated header + one value per line, deduped case-insensitively,
+   blanks skipped, order otherwise preserved. Returns the flattened term count. */
+function iocFlatten(arr){
+  var out=["# GENERATED from IOC.csv by DFIR-Artifact-Finder — edit via the Finder's IOC editor.",
+           "# One term per line; every wrapper auto-loads this file at launch."];
+  var seen={};
+  for(var i=0;i<arr.length;i++){ var v=trimStr(arr[i].v); if(!v) continue;
+    var k=v.toLowerCase(); if(seen[k]) continue; seen[k]=1; out.push(v); }
+  writeUtf8(iocTxtPath(), out.join("\r\n")+"\r\n");
+  return out.length-2;
+}
+/* chip count: from IOC.csv when present (deduped non-empty values), else IOC.txt non-comment lines, else -1 */
+function iocCount(){
+  if(fileExists(iocCsvPath())){
+    var arr=iocLoadCsv(), seen={}, n=0;
+    for(var i=0;i<arr.length;i++){ var k=arr[i].v.toLowerCase(); if(k && !seen[k]){ seen[k]=1; n++; } }
+    return n;
+  }
+  if(fileExists(iocTxtPath())){
+    var c=0; try{ var ls=readUtf8(iocTxtPath()).split(/\r?\n/);
+      for(var x=0;x<ls.length;x++){ var L=trimStr(ls[x]); if(L && L.charAt(0)!=="#") c++; } }catch(e){}
+    return c;
+  }
+  return -1;
+}
+
+/* both chip actions route here (create/edit) — Notepad is no longer the primary path */
+function iocEdit(mode){ openIocEditor(); }
+function openIocEditor(){
+  IOC_ROWS=iocLoadCsv();
+  var imp=iocImportLegacy(IOC_ROWS);
+  if(imp>0) appendLog("Imported "+imp+" term(s) from the existing IOC.txt");
+  if(!IOC_ROWS.length) IOC_ROWS.push({ v:"", t:"keyword", n:"", c:"" });   // always show one editable row
+  renderIocTable();
+  $("iocStatus").innerHTML = imp>0 ? ("Imported "+imp+" term(s) from the existing IOC.txt") : "";
+  showEl("iocModal",true);
+}
+function closeIocEditor(){ showEl("iocModal",false); }
+function renderIocTable(){
+  var h='<table id="iocTbl" class="ioctbl"><tr><th>Value</th><th style="width:110px">Type</th><th>Note</th><th style="width:150px">Case</th><th style="width:34px"></th></tr>';
+  for(var i=0;i<IOC_ROWS.length;i++){ var r=IOC_ROWS[i];
+    h+='<tr><td><input class="txt" id="ioc_v_'+i+'" value="'+esc(r.v)+'" onchange="iocAutoType(this)"></td>';
+    h+='<td><select id="ioc_t_'+i+'">';
+    for(var j=0;j<IOC_TYPES.length;j++){ h+='<option value="'+IOC_TYPES[j]+'"'+(IOC_TYPES[j]===r.t?' selected':'')+'>'+IOC_TYPES[j]+'</option>'; }
+    h+='</select></td>';
+    h+='<td><input class="txt" id="ioc_n_'+i+'" value="'+esc(r.n)+'"></td>';
+    h+='<td><input class="txt" id="ioc_c_'+i+'" value="'+esc(r.c)+'"></td>';
+    h+='<td style="text-align:center"><span class="lnk" data-iocdel="'+i+'" title="Remove this row">del</span></td></tr>';
+  }
+  h+='</table>';
+  $("iocTblWrap").innerHTML=h;
+}
+/* sync every visible input back into the array before any structural change or save (whole-table re-render loses input state otherwise) */
+function iocSyncFromDom(){
+  for(var i=0;i<IOC_ROWS.length;i++){
+    var v=$("ioc_v_"+i), t=$("ioc_t_"+i), n=$("ioc_n_"+i), c=$("ioc_c_"+i);
+    if(v) IOC_ROWS[i].v=trimStr(v.value);
+    if(t) IOC_ROWS[i].t=iocNormType(t.value);
+    if(n) IOC_ROWS[i].n=n.value;
+    if(c) IOC_ROWS[i].c=c.value;
+  }
+}
+/* on Value change: auto-pick the type — but only when the operator hasn't already set one (Type still 'keyword') */
+function iocAutoType(el){
+  var id=el.id+""; var i=id.substring(id.lastIndexOf("_")+1);
+  var sel=$("ioc_t_"+i); if(!sel || sel.value!=="keyword") return;
+  var v=trimStr(el.value);
+  if(/^[0-9a-fA-F]{40}$/.test(v)) sel.value="hash";
+  else if(iocIsIpv4(v)) sel.value="ip";
+}
+function iocAddRow(){ iocSyncFromDom(); IOC_ROWS.push({ v:"", t:"keyword", n:"", c:"" }); renderIocTable();
+  try{ var f=$("ioc_v_"+(IOC_ROWS.length-1)); if(f) f.focus(); }catch(e){} }
+function iocDelRow(i){ iocSyncFromDom(); if(i>=0 && i<IOC_ROWS.length) IOC_ROWS.splice(i,1);
+  if(!IOC_ROWS.length) IOC_ROWS.push({ v:"", t:"keyword", n:"", c:"" }); renderIocTable(); }
+function iocSave(){
+  iocSyncFromDom();
+  var clean=[], seen={}, dups=0;
+  for(var i=0;i<IOC_ROWS.length;i++){ var r=IOC_ROWS[i]; var v=trimStr(r.v); if(!v) continue;   // drop empty-value rows
+    var k=v.toLowerCase();
+    if(seen[k]){ dups++; continue; }                                                             // keep first on duplicate
+    seen[k]=1; clean.push({ v:v, t:iocNormType(r.t), n:r.n, c:r.c });
+  }
+  var n;
+  try{ iocSaveCsv(clean); n=iocFlatten(clean); }
+  catch(e){ $("iocStatus").innerHTML=esc("Save failed: "+e.message); setStatus("IOC save failed: "+e.message,"err"); return; }
+  IOC_ROWS = clean.length ? clean : [{ v:"", t:"keyword", n:"", c:"" }];
+  renderIocTable(); renderToolStrip();
+  var msg="Saved "+n+" IOC"+(n===1?"":"s")+" — wrappers pick them up on their next launch"
+    +(dups?(" ("+dups+" duplicate"+(dups===1?"":"s")+" dropped)"):"");
+  $("iocStatus").innerHTML=esc(msg); setStatus(msg,"ok");
+  appendLog("IOC editor: wrote IOC.csv ("+clean.length+" rows) + IOC.txt ("+n+" terms)");
+}
+/* raw access to the generated wire file (read-mostly — regenerated on the next Save) */
+function iocOpenNotepad(){
+  var p=iocTxtPath();
+  if(!fileExists(p)){ setStatus("No IOC.txt yet — add a term and Save first.","err"); return; }
   try{ new ActiveXObject("WScript.Shell").Run('notepad.exe "'+p+'"',1,false); }
-  catch(e2){ setStatus("Could not open Notepad: "+e2.message,"err"); return; }
-  setStatus("IOC.txt opened in Notepad — wrappers pick it up on their next launch.","ok");
-  window.setTimeout(renderToolStrip,4000);   // refresh the term count after a quick edit
+  catch(e){ setStatus("Could not open Notepad: "+e.message,"err"); }
 }
 
 /* ---------- export / copy ---------- */
@@ -1575,6 +1731,12 @@ function init(){
     if(gk){ getTool(CATBYKEY[gk]); return; }
     var im=t.getAttribute("data-ioc");
     if(im){ iocEdit(im); return; }
+    if(t.getAttribute("data-iocadd")){ iocAddRow(); return; }
+    var idel=t.getAttribute("data-iocdel");
+    if(idel!=null && idel!==""){ iocDelRow(parseInt(idel,10)); return; }
+    if(t.getAttribute("data-iocsave")){ iocSave(); return; }
+    if(t.getAttribute("data-ioccancel")){ closeIocEditor(); return; }
+    if(t.getAttribute("data-iocnp")){ iocOpenNotepad(); return; }
     var pah=t.getAttribute("data-pah");
     if(pah!=null && pah!==""){ processAllHost(pah); return; }
     var io=t.getAttribute("data-invopen");
@@ -1699,7 +1861,7 @@ window.onload=function(){ init(); try{ window.setTimeout(checkSelfUpdate,600); }
       <li><b>Target hostname</b> is required before processing. It is guessed from the scan (<code>Collection-&lt;host&gt;-…</code> segments or the folder layout) — overwrite it if wrong. Multi-host scans use each row's own detected host; the field covers rows whose host could not be derived.</li>
       <li>An append-only manifest (<code>_Processed\artifact-finder-manifest.json</code>) ties every launch to its exact artifact path, and each wrapper writes a <code>runinfo.json</code> into its output folder after every run — so processed state survives even if the manifest is lost. Old-convention output (<code>&lt;scanRoot&gt;\_Processed\&lt;Host&gt;_&lt;Artifact&gt;_&lt;stamp&gt;</code>) is still recognised for status and [Open], never written.</li>
       <li>The <b>Processed inventory</b> card (shown before any scan) is the hosts &times; tools view of that tree across all cases — click a cell to reopen the newest output in its wrapper. Each cell also shows the tool's own <b>triage headline</b> from its newest run (flagged count / max score; Hayabusa crit/high) — red means findings; hover for the top hits; <b>Copy triage summary</b> puts the per-host block on the clipboard for case notes.</li>
-      <li><b>IOC.txt</b> next to this app (see the toolkit strip — create/edit) is the shared IOC list: one term per line, <code>#</code> comments; every wrapper auto-loads it at launch and merges it into its own IOC/keyword scoring. One paste covers the whole engagement.</li>
+      <li><b>IOC list</b> (toolkit strip — create/edit) opens a structured editor: <code>IOC.csv</code> holds <b>Value / Type / Note / Case</b> and is the editable source; on save the Finder flattens it to <code>IOC.txt</code> (one term per line, <code>#</code> comments), the file every wrapper auto-loads at launch and merges into its own IOC/keyword scoring. Hash/IPv4 values are auto-typed; legacy <code>IOC.txt</code> terms are imported on first edit so nothing is lost. One paste covers the whole engagement.</li>
     </ul>
     <h3>Command line</h3>
     <p><code>mshta "DFIR-Artifact-Finder.hta" ["&lt;scanRoot&gt;"] [/scan]</code></p>
@@ -1715,6 +1877,24 @@ window.onload=function(){ init(); try{ window.setTimeout(checkSelfUpdate,600); }
       <li>Columns are resizable — drag a header's right edge; double-click the edge to reset.</li>
     </ul>
     <p class="muted" style="font-size:11px">MIT © 2026 Ben Morris — click the link above for the full README &amp; releases.</p>
+  </div>
+</div>
+
+<div id="iocModal" class="modal hide" onclick="if((event.srcElement||{}).id==='iocModal')closeIocEditor()">
+  <div class="mcard" style="max-width:920px">
+    <span class="x" onclick="closeIocEditor()" title="Close">&times;</span>
+    <h2>IOC list editor <span class="muted" style="font-size:13px;font-weight:400">&mdash; IOC.csv &rarr; IOC.txt</span></h2>
+    <p><b>IOC.csv</b> (Value / Type / Note / Case) is the editable source of truth. On <b>Save</b> it is flattened to <b>IOC.txt</b> &mdash; one term per line &mdash; which every wrapper in the family auto-loads at launch. Type / Note / Case are Finder-side metadata; only <b>Value</b> reaches the wrappers.</p>
+    <div id="iocTblWrap"></div>
+    <div style="margin-top:10px">
+      <span class="btn sm" data-iocadd="1">+ Add row</span>
+      <span class="lnk" style="margin-left:14px" data-iocnp="1" title="Open the generated IOC.txt in Notepad (raw view — regenerated on the next Save)">Open IOC.txt in Notepad</span>
+    </div>
+    <div style="margin-top:14px">
+      <span class="btn primary" data-iocsave="1">Save</span>
+      <span class="btn" data-ioccancel="1">Cancel</span>
+      <span class="muted" id="iocStatus" style="margin-left:12px;font-size:12px"></span>
+    </div>
   </div>
 </div>
 </body>
