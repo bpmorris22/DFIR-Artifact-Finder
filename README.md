@@ -40,10 +40,11 @@ It never opens or parses artifact contents itself — it is a **scanner + regist
 ## Command line
 
 ```
-mshta.exe "DFIR-Artifact-Finder.hta" "<scanRoot>" [/scan]
+mshta.exe "DFIR-Artifact-Finder.hta" "<scanRoot>" [/scan] [/from:yyyy-MM-dd] [/to:yyyy-MM-dd]
 ```
 - `<scanRoot>` — the case folder to scan (prefilled into the box).
 - `/scan` — start scanning immediately.
+- `/from:yyyy-MM-dd` `/to:yyyy-MM-dd` — prefills the **Case window** (UTC). It rides on every wrapper launch as `/from:/to:`, prefilling each wrapper's date filter (recorded in the manifest and each wrapper's `runinfo.json`). Never affects scoring.
 
 The last scan root is remembered in a `DFIR-Artifact-Finder.settings.json` sidecar next to the `.hta` (not committed).
 
