@@ -1,4 +1,4 @@
-# DFIR Artifact Finder
+# DFIR Windows Artifact Finder
 
 A single-file **master triage launcher** for Windows DFIR casework. Point it at a case folder (a tree of Velociraptor / KAPE collections, typically one per host); it recursively scans the tree, identifies every artifact the wrapper family can process, and presents a **host-grouped launch board**. One click launches the matching parser-wrapper with the artifact path and output directory pre-filled.
 
@@ -25,7 +25,7 @@ It never opens or parses artifact contents itself — it is a **scanner + regist
 
 ## Field manual
 
-A single-file **[Field Manual](docs/DFIR-Toolkit-Manual.html)** for the whole toolkit lives in this repo — every tool's purpose, features, scoring tables, CLI contract and suggested workflows, with synthetic-data screenshots. GitHub won't render it inline: [download the raw file](https://raw.githubusercontent.com/bpmorris22/DFIR-Artifact-Finder/main/docs/DFIR-Toolkit-Manual.html) and open it in any browser (fully self-contained, ~5 MB).
+A single-file **[Field Manual](docs/DFIR-Toolkit-Manual.html)** for the whole toolkit lives in this repo — every tool's purpose, features, scoring tables, CLI contract and suggested workflows, with synthetic-data screenshots. GitHub won't render it inline: [download the raw file](https://raw.githubusercontent.com/bpmorris22/DFIR-Windows-Artifact-Finder/main/docs/DFIR-Toolkit-Manual.html) and open it in any browser (fully self-contained, ~5 MB).
 
 ## How it works
 

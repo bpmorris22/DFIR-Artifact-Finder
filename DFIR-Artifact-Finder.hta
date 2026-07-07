@@ -3,10 +3,10 @@
 <head>
 <meta http-equiv="x-ua-compatible" content="IE=edge">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>DFIR Artifact Finder</title>
+<title>DFIR Windows Artifact Finder</title>
 <HTA:APPLICATION
   ID="afHta"
-  APPLICATIONNAME="DFIR Artifact Finder"
+  APPLICATIONNAME="DFIR Windows Artifact Finder"
   BORDER="thick"
   CAPTION="yes"
   SCROLL="auto"
@@ -18,7 +18,7 @@
   CONTEXTMENU="yes"
   SELECTION="yes" />
 <!--
-  DFIR-Artifact-Finder — master triage launcher for the wrapper family
+  DFIR-Windows-Artifact-Finder — master triage launcher for the wrapper family
   (Hayabusa / PECmd / AmcacheParser / MFTECmd / SrumECmd / SumECmd / RBCmd / SQLECmd wrappers, github.com/bpmorris22/*).
 
   Scans a case folder (Velociraptor / KAPE collection trees) with `dir /s /b` (FSO recursion dies on the
@@ -133,7 +133,7 @@
 </head>
 <body>
 <header>
-  <h1>DFIR Artifact Finder <small>&mdash; scan a case folder, launch the right tool <span id="appver"></span></small></h1>
+  <h1>DFIR Windows Artifact Finder <small>&mdash; scan a case folder, launch the right tool <span id="appver"></span></small></h1>
   <span class="pill" id="srcpill">no scan yet</span>
   <span style="float:right">
     <button class="btn primary hide" id="selfUpd" onclick="doSelfUpdate()" title="A newer version is available on GitHub">Update</button>
@@ -241,7 +241,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.12.0";
+var APP_VERSION = "0.13.0";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace — survives a crash where the UI can't be seen; overwritten each launch */
@@ -1697,7 +1697,7 @@ function init(){
   bootLog("init start");
   try{ window.resizeTo(1420,940); }catch(e){}
   $("appver").innerHTML="&middot; v"+APP_VERSION;
-  try{ document.title="DFIR Artifact Finder v"+APP_VERSION; }catch(e){}
+  try{ document.title="DFIR Windows Artifact Finder v"+APP_VERSION; }catch(e){}
   TOOLDIR=htaFolder();
   $("tblScroll").onscroll=applyFreeze;
   loadSettings();
@@ -1816,13 +1816,13 @@ function init(){
 }
 
 /* ---------- help ---------- */
-var GITHUB="https://github.com/bpmorris22/DFIR-Artifact-Finder";
+var GITHUB="https://github.com/bpmorris22/DFIR-Windows-Artifact-Finder";
 function openUrl(u){ try{ new ActiveXObject("WScript.Shell").Run('"'+u+'"',1,false); }catch(e){ setStatus("Could not open browser: "+e.message,"err"); } }
 function openHelp(){ try{ $("helpVer").innerHTML="v"+APP_VERSION; }catch(e){} showEl("helpModal",true); }
 function closeHelp(){ showEl("helpModal",false); }
 
 /* ---------- self-update: quiet check of this app's GitHub Releases; one-click download of a newer .hta ---------- */
-var SELF_REPO="bpmorris22/DFIR-Artifact-Finder", SELF_HTA="DFIR-Artifact-Finder.hta", SELF_LATEST="", SELF_ASSET_URL="";
+var SELF_REPO="bpmorris22/DFIR-Windows-Artifact-Finder", SELF_HTA="DFIR-Artifact-Finder.hta", SELF_LATEST="", SELF_ASSET_URL="";
 function selfVerNewer(r,l){ var a=String(r).split("."),b=String(l).split("."),n=Math.max(a.length,b.length);
   for(var i=0;i<n;i++){ var x=parseInt(a[i],10)||0,y=parseInt(b[i],10)||0; if(x!==y) return x>y; } return false; }
 function selfPath(){ try{ var p=decodeURIComponent(location.pathname+"").replace(/^\//,"").replace(/\//g,"\\");
@@ -1874,8 +1874,8 @@ window.onload=function(){ init(); try{ window.setTimeout(checkSelfUpdate,600); }
 <div id="helpModal" class="modal hide" onclick="if((event.srcElement||{}).id==='helpModal')closeHelp()">
   <div class="mcard">
     <span class="x" onclick="closeHelp()" title="Close">&times;</span>
-    <h2>DFIR Artifact Finder <span class="muted" style="font-size:13px;font-weight:400" id="helpVer"></span></h2>
-    <div class="gh muted">GitHub: <span class="lnk" onclick="openUrl(GITHUB)">https://github.com/bpmorris22/DFIR-Artifact-Finder</span></div>
+    <h2>DFIR Windows Artifact Finder <span class="muted" style="font-size:13px;font-weight:400" id="helpVer"></span></h2>
+    <div class="gh muted">GitHub: <span class="lnk" onclick="openUrl(GITHUB)">https://github.com/bpmorris22/DFIR-Windows-Artifact-Finder</span></div>
     <p>Master triage launcher for the wrapper family. Point it at a case folder (Velociraptor / KAPE collection trees), it scans recursively, identifies every artifact a wrapper can process, and presents a host-grouped launch board — <b>[Process]</b> opens the right wrapper pre-filled, <b>[Open]</b> loads already-processed output back into its wrapper for analysis. The finder never parses artifact contents itself.</p>
     <h3>Quick start</h3>
     <ul>
