@@ -159,6 +159,13 @@
       <span class="muted" style="font-size:11px">&rarr; outputs go to _Processed\&lt;host&gt;\&lt;App&gt; next to this app</span>
     </div>
     <div style="margin-top:8px">
+      <label class="fld" style="display:inline" title="Passed to every wrapper launch as /from:/to: — prefills their date filters (never affects scoring). Leave blank for no window.">Case window (UTC, optional)</label>
+      <input class="txt mono" id="winFrom" value="" style="width:130px" placeholder="yyyy-mm-dd">
+      &nbsp;&ndash;&nbsp;
+      <input class="txt mono" id="winTo" value="" style="width:130px" placeholder="yyyy-mm-dd">
+      <span class="muted" style="font-size:11px">&rarr; every launch carries /from:/to: — prefills the wrapper date filter (never scored)</span>
+    </div>
+    <div style="margin-top:8px">
       <label style="font-size:12px" title="When ON, [Process] passes /auto so the wrapper starts processing immediately on open. When OFF (default) the wrapper opens with everything pre-filled and you review + start it yourself.">
         <input type="checkbox" id="optAuto"> bulk mode &mdash; launch with /auto (process immediately)</label>
       &nbsp;&nbsp;<label style="font-size:12px" title="Show artifact types that have no wrapper tool yet (greyed rows — they double as the roadmap).">
@@ -234,7 +241,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.11.0";
+var APP_VERSION = "0.12.0";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace — survives a crash where the UI can't be seen; overwritten each launch */
@@ -470,6 +477,8 @@ function saveSettings(){
   SETTINGS.lastRoot=$("rootPath").value;
   SETTINGS.bulk=$("optAuto").checked;
   SETTINGS.showC=$("optShowC").checked;
+  SETTINGS.winFrom=$("winFrom").value;
+  SETTINGS.winTo=$("winTo").value;
   try{ writeUtf8(settingsPath(), JSON.stringify(SETTINGS,null,2)); }catch(e){}
 }
 
@@ -1129,13 +1138,24 @@ function populateHostFilter(){
 }
 
 /* ---------- detail pane ---------- */
+/* ---------- case window (family, 2026-07-07) ----------
+   The optional Case window (winFrom/winTo, UTC dates) rides on EVERY wrapper launch as
+   /from:/to:, which prefills the wrapper's date filter (filter only — never scored). Accept only
+   yyyy-mm-dd; anything else is treated as blank (one status warning). Returns {from,to,args}. */
+function caseWin(warn){
+  var f=trimStr($("winFrom").value), t2=trimStr($("winTo").value), bad=false;
+  if(f && !/^\d{4}-\d{2}-\d{2}$/.test(f)){ f=""; bad=true; }
+  if(t2 && !/^\d{4}-\d{2}-\d{2}$/.test(t2)){ t2=""; bad=true; }
+  if(bad && warn) setStatus("Case window ignored — dates must be yyyy-mm-dd (UTC).","err");
+  return {from:f, to:t2, args:(f?(' /from:'+f):'')+(t2?(' /to:'+t2):'')};
+}
 function buildCmd(row){
   var cat=row.cat;
   if(!cat.wrapper) return "(no wrapper tool yet)";
   var hta=WPATH[cat.wrapper]||(TOOLDIR+"\\"+cat.wrapper+".hta");
   if(!cat.cli) return 'mshta.exe "'+hta+'"   (then paste: '+row.path+')';
   var outDir=newOutDir(row)||(TOOLDIR+"\\_Processed\\<hostname?>\\"+appFor(cat));
-  return 'mshta.exe "'+hta+'" "'+row.path+'" "'+outDir+'"'+($("optAuto").checked?" /auto":"");
+  return 'mshta.exe "'+hta+'" "'+row.path+'" "'+outDir+'"'+($("optAuto").checked?" /auto":"")+caseWin(false).args;
 }
 function renderDetail(row){
   DETROW=row;
@@ -1217,10 +1237,13 @@ function launchCli(row, forceAuto){
   if(!host){ appendLog("Skipped (no hostname): "+row.path); return false; }
   var outDir=TOOLDIR+"\\_Processed\\"+host+"\\"+appFor(cat);
   if(!ensureFolder(outDir)){ setStatus("Could not create output folder: "+outDir,"err"); return false; }
-  var cmd='mshta.exe "'+hta+'" "'+row.path+'" "'+outDir+'"'+((forceAuto||$("optAuto").checked)?" /auto":"");
+  var cw=caseWin(true);
+  var cmd='mshta.exe "'+hta+'" "'+row.path+'" "'+outDir+'"'+((forceAuto||$("optAuto").checked)?" /auto":"")+cw.args;
   try{ new ActiveXObject("WScript.Shell").Run(cmd,1,false); }
   catch(e3){ setStatus("Could not launch "+cat.wrapper+": "+e3.message,"err"); return false; }
-  appendManifest({artifactPath:row.path, key:row.key, host:row.host, hostUsed:host, app:appFor(cat), wrapper:cat.wrapper, outDir:outDir, launchedUtc:nowIso(), cmd:cmd});
+  var ment={artifactPath:row.path, key:row.key, host:row.host, hostUsed:host, app:appFor(cat), wrapper:cat.wrapper, outDir:outDir, launchedUtc:nowIso(), cmd:cmd};
+  if(cw.from) ment.winFrom=cw.from; if(cw.to) ment.winTo=cw.to;   // case window carried on the launch (filter only, never scored)
+  appendManifest(ment);
   row.status="launch"; row.statusDate=nowIso().substring(0,16).replace("T"," "); row.lastOut=outDir;
   appendLog("Launched: "+cmd);
   return true;
@@ -1658,9 +1681,11 @@ function tokenizeCmdTail(){
 }
 function parseCli(){
   var toks=tokenizeCmdTail();
-  var cli={root:"", scan:false};
+  var cli={root:"", scan:false, from:"", to:""};
   for(var i=0;i<toks.length;i++){ var t=toks[i];
     if(/^[\/\-]{1,2}scan$/i.test(t)){ cli.scan=true; continue; }
+    var fm=t.match(/^[\/\-]{1,2}from[:=](\d{4}-\d{2}-\d{2})$/i); if(fm){ cli.from=fm[1]; continue; }
+    var tm=t.match(/^[\/\-]{1,2}to[:=](\d{4}-\d{2}-\d{2})$/i); if(tm){ cli.to=tm[1]; continue; }
     if(/^[\/\-]/.test(t)) continue;
     if(!cli.root) cli.root=t;
   }
@@ -1680,6 +1705,8 @@ function init(){
   if(SETTINGS.lastRoot) $("rootPath").value=SETTINGS.lastRoot;
   if(SETTINGS.bulk) $("optAuto").checked=true;
   if(SETTINGS.showC===false){ $("optShowC").checked=false; SHOWC=false; }
+  if(SETTINGS.winFrom) $("winFrom").value=SETTINGS.winFrom;
+  if(SETTINGS.winTo) $("winTo").value=SETTINGS.winTo;
   renderToolStrip();
   scanToolkitProcessed(); renderInventory();   // processed inventory is available before any scan
 
@@ -1778,6 +1805,8 @@ function init(){
   var cli=parseCli();
   if(cli.root && folderExists(cli.root)){ $("rootPath").value=cli.root; }
   else if(cli.root){ setStatus("CLI scan root not found: "+cli.root,"err"); }
+  if(cli.from) $("winFrom").value=cli.from;   // case window prefill (carried onto every launch as /from:/to:)
+  if(cli.to) $("winTo").value=cli.to;
   if(cli.scan && folderExists($("rootPath").value)){
     appendLog("CLI: /scan — scanning "+$("rootPath").value);
     window.setTimeout(startScan, 200);
@@ -1864,10 +1893,11 @@ window.onload=function(){ init(); try{ window.setTimeout(checkSelfUpdate,600); }
       <li><b>IOC list</b> (toolkit strip — create/edit) opens a structured editor: <code>IOC.csv</code> holds <b>Value / Type / Note / Case</b> and is the editable source; on save the Finder flattens it to <code>IOC.txt</code> (one term per line, <code>#</code> comments), the file every wrapper auto-loads at launch and merges into its own IOC/keyword scoring. Hash/IPv4 values are auto-typed; legacy <code>IOC.txt</code> terms are imported on first edit so nothing is lost. One paste covers the whole engagement.</li>
     </ul>
     <h3>Command line</h3>
-    <p><code>mshta "DFIR-Artifact-Finder.hta" ["&lt;scanRoot&gt;"] [/scan]</code></p>
+    <p><code>mshta "DFIR-Artifact-Finder.hta" ["&lt;scanRoot&gt;"] [/scan] [/from:yyyy-MM-dd] [/to:yyyy-MM-dd]</code></p>
     <ul>
       <li><code>&lt;scanRoot&gt;</code> — prefills the case folder. &nbsp; <code>/scan</code> — scan immediately on open.</li>
-      <li>Wrappers are launched as <code>mshta "&lt;Tool&gt;-Wrapper.hta" "&lt;artifact&gt;" "&lt;outDir&gt;" [/auto]</code> — <b>bulk mode</b> adds <code>/auto</code> so they process on open.</li>
+      <li><code>/from:yyyy-MM-dd</code> <code>/to:yyyy-MM-dd</code> — prefills the <b>Case window</b> (UTC). It rides on every wrapper launch as <code>/from:/to:</code>, prefilling the wrapper's date filter; it is recorded in the manifest and runinfo and <b>never affects scoring</b>.</li>
+      <li>Wrappers are launched as <code>mshta "&lt;Tool&gt;-Wrapper.hta" "&lt;artifact&gt;" "&lt;outDir&gt;" [/auto] [/from:…] [/to:…]</code> — <b>bulk mode</b> adds <code>/auto</code> so they process on open; the <b>Case window</b> (if set) adds <code>/from:/to:</code>.</li>
     </ul>
     <h3>Notes</h3>
     <ul>
