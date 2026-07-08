@@ -18,7 +18,7 @@
   CONTEXTMENU="yes"
   SELECTION="yes" />
 <!--
-  DFIR-Windows-Artifact-Finder — master triage launcher for the wrapper family
+  DFIR-Windows-Artifact-Finder - master triage launcher for the wrapper family
   (Hayabusa / PECmd / AmcacheParser / MFTECmd / SrumECmd / SumECmd / RBCmd / SQLECmd wrappers, github.com/bpmorris22/*).
 
   Scans a case folder (Velociraptor / KAPE collection trees) with `dir /s /b` (FSO recursion dies on the
@@ -34,7 +34,7 @@
   evidence shows as done on the next scan. Old-convention runs
   (<scanRoot>\_Processed\<Host>_<Artifact>_<stamp>\ + scan-root manifest) are still read for state and
   [Open], never written. [Open] on a processed/legacy row hands the newest output
-  (csv, or the .html report for MFT) back to its wrapper via the same CLI contract — auto-downloading
+  (csv, or the .html report for MFT) back to its wrapper via the same CLI contract - auto-downloading
   the wrapper first if it's missing.
 
   GOTCHAS:
@@ -42,7 +42,7 @@
      WScript.Shell.Run launches (mshta / explorer) do NOT go through cmd, so % passes through unharmed.
    * Only CLI-retrofitted wrappers (cli:true in the catalog) get real arguments. Others open bare with
      the artifact path on the clipboard until their retrofit lands.
-   * This tool never opens artifact contents — it is a scanner + registry + launcher only.
+   * This tool never opens artifact contents - it is a scanner + registry + launcher only.
 -->
 <style>
   html{margin:0;height:100%;background:#0d1117}
@@ -133,7 +133,7 @@
 </head>
 <body>
 <header>
-  <h1>DFIR Windows Artifact Finder <small>&mdash; scan a case folder, launch the right tool <span id="appver"></span></small></h1>
+  <h1>DFIR Windows Artifact Finder <small>- scan a case folder, launch the right tool <span id="appver"></span></small></h1>
   <span class="pill" id="srcpill">no scan yet</span>
   <span style="float:right">
     <button class="btn primary hide" id="selfUpd" onclick="doSelfUpdate()" title="A newer version is available on GitHub">Update</button>
@@ -148,27 +148,27 @@
   <!-- CONTROL PANEL -->
   <div class="card">
     <h3>Scan control</h3>
-    <label class="fld">Case folder to scan (recursive) &mdash; Velociraptor / KAPE collection trees, or any evidence folder</label>
+    <label class="fld">Case folder to scan (recursive) - Velociraptor / KAPE collection trees, or any evidence folder</label>
     <input class="txt wide" id="rootPath" value="">
     <button class="btn" id="browseBtn">Browse&hellip;</button>
     <button class="btn primary" id="scanBtn">Scan &rarr; find artifacts</button>
     <span class="muted" id="status" style="margin-left:8px"></span>
     <div style="margin-top:8px">
-      <label class="fld" style="display:inline" title="Names the output folder: _Processed\&lt;host&gt;\&lt;App&gt; next to this app. Guessed from the scan — overwrite it if the guess is wrong. On multi-host scans each row uses its own detected host; this field covers rows whose host could not be derived.">Target hostname (required for processing)</label>
+      <label class="fld" style="display:inline" title="Names the output folder: _Processed\&lt;host&gt;\&lt;App&gt; next to this app. Guessed from the scan - overwrite it if the guess is wrong. On multi-host scans each row uses its own detected host; this field covers rows whose host could not be derived.">Target hostname (required for processing)</label>
       <input class="txt" id="hostName" value="" style="width:220px" placeholder="guessed after scan">
       <span class="muted" style="font-size:11px">&rarr; outputs go to _Processed\&lt;host&gt;\&lt;App&gt; next to this app</span>
     </div>
     <div style="margin-top:8px">
-      <label class="fld" style="display:inline" title="Passed to every wrapper launch as /from:/to: — prefills their date filters (never affects scoring). Leave blank for no window.">Case window (UTC, optional)</label>
+      <label class="fld" style="display:inline" title="Passed to every wrapper launch as /from:/to: - prefills their date filters (never affects scoring). Leave blank for no window.">Case window (UTC, optional)</label>
       <input class="txt mono" id="winFrom" value="" style="width:130px" placeholder="yyyy-mm-dd">
       &nbsp;&ndash;&nbsp;
       <input class="txt mono" id="winTo" value="" style="width:130px" placeholder="yyyy-mm-dd">
-      <span class="muted" style="font-size:11px">&rarr; every launch carries /from:/to: — prefills the wrapper date filter (never scored)</span>
+      <span class="muted" style="font-size:11px">&rarr; every launch carries /from:/to: - prefills the wrapper date filter (never scored)</span>
     </div>
     <div style="margin-top:8px">
       <label style="font-size:12px" title="When ON, [Process] passes /auto so the wrapper starts processing immediately on open. When OFF (default) the wrapper opens with everything pre-filled and you review + start it yourself.">
-        <input type="checkbox" id="optAuto"> bulk mode &mdash; launch with /auto (process immediately)</label>
-      &nbsp;&nbsp;<label style="font-size:12px" title="Show artifact types that have no wrapper tool yet (greyed rows — they double as the roadmap).">
+        <input type="checkbox" id="optAuto"> bulk mode - launch with /auto (process immediately)</label>
+      &nbsp;&nbsp;<label style="font-size:12px" title="Show artifact types that have no wrapper tool yet (greyed rows - they double as the roadmap).">
         <input type="checkbox" id="optShowC" checked> show artifacts with no tool yet</label>
       <span class="sep"></span>
       <button class="btn" id="logToggle">Show log</button>
@@ -186,10 +186,10 @@
       <button class="btn" id="triageBtn" style="float:right" title="Copy a per-host triage block (newest summary per tool) for case notes">Copy triage summary</button></h3>
     <div class="scroll" style="max-height:280px"><table id="invTbl"></table></div>
     <div class="muted" style="font-size:11px;margin-top:6px">
-      Everything under <span class="mono">_Processed</span> next to this app &mdash; newest output date (file count) per host per tool,
+      Everything under <span class="mono">_Processed</span> next to this app - newest output date (file count) per host per tool,
       across all cases. Click a cell to open the newest output in its wrapper; <span class="mono">dir</span> opens the folder.
       The <span class="sumbad">&#9873; red</span> / <span class="sumok">green</span> line is the tool's own triage headline
-      (flagged / max score, or Hayabusa crit/high) from the newest run &mdash; hover for the top hits.
+      (flagged / max score, or Hayabusa crit/high) from the newest run - hover for the top hits.
     </div>
   </div>
 
@@ -201,7 +201,7 @@
     </div>
 
     <div class="card">
-      <h3>Artifacts <span class="muted" style="text-transform:none;letter-spacing:0">&mdash; grouped by host; click a row for detail</span></h3>
+      <h3>Artifacts <span class="muted" style="text-transform:none;letter-spacing:0">- grouped by host; click a row for detail</span></h3>
       <div class="row" style="margin-bottom:8px" id="typeCats"></div>
       <div class="row" style="margin-bottom:8px">
         <button class="btn on" data-st="all">All</button>
@@ -223,7 +223,7 @@
       <div class="muted" style="font-size:11px;margin-top:6px">
         <span class="st st-none">&#9679; not processed</span> <span class="st st-launch">&#9684; launched</span>
         <span class="st st-proc">&#10004; processed</span> <span class="st st-legacy">&#10004;? legacy output found</span>
-        <span class="st st-notool">&mdash; no tool yet</span>
+        <span class="st st-notool">- no tool yet</span>
         &nbsp;&middot;&nbsp; [Process] opens the wrapper pre-filled for review; outputs go to _Processed\&lt;Hostname&gt;\&lt;App&gt;\ next to this app (Target hostname field above).
         [Open] on a processed row loads the newest output straight back into the wrapper's viewer (downloading the wrapper first if it's missing).
         Drag a column header's right edge to resize it; double-click the edge to reset all widths.
@@ -241,16 +241,16 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.13.0";
+var APP_VERSION = "0.13.1";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
-/* boot/error trace — survives a crash where the UI can't be seen; overwritten each launch */
+/* boot/error trace - survives a crash where the UI can't be seen; overwritten each launch */
 var BOOTLOG="";
 function bootLog(msg){
   try{
     var fso=new ActiveXObject("Scripting.FileSystemObject");
     if(!BOOTLOG){ var dir="";
-      // afHta isn't reachable at script top-level — location.pathname is
+      // afHta isn't reachable at script top-level - location.pathname is
       try{ var lp=decodeURIComponent(location.pathname+"").replace(/^\//,"").replace(/\//g,"\\"); dir=lp.substring(0,lp.lastIndexOf("\\")); }catch(e0){}
       if(!dir){ var cl=""; try{ cl=afHta.commandLine+""; }catch(e1){}
         var m=cl.match(/"([^"]+\.hta)"/i); dir=m?m[1].substring(0,m[1].lastIndexOf("\\")):fso.GetSpecialFolder(2)+""; }
@@ -267,8 +267,8 @@ var ROWS = [];                        // artifact rows (built by scan)
 var MANIFEST = [];                    // artifact-finder-manifest.json entries (new toolkit manifest + legacy scan-root one)
 var PROCCSV = [];                     // csv paths found under the SCAN ROOT's _Processed (old convention, lowercase)
 var TKFILES = [];                     // {p:lowercase path, P:original-case path, ms, mtime:"yyyy-mm-dd hh:mm"} under TOOLDIR\_Processed (new convention)
-var RUNINFO = [];                     // wrapper-written runinfo.json entries (+outDir) — exact artifact↔output binding without the manifest
-var HOST_TOUCHED = false;             // operator typed in the Target-hostname field — never clobber it with guesses
+var RUNINFO = [];                     // wrapper-written runinfo.json entries (+outDir) - exact artifact↔output binding without the manifest
+var HOST_TOUCHED = false;             // operator typed in the Target-hostname field - never clobber it with guesses
 var LEGACY = {};                      // "host|key" -> legacy csv path
 var HOPEN = {};                       // host group collapse state
 var DEFOPEN = 1;                      // default open state for new host groups (0 on multi-host scans)
@@ -286,39 +286,39 @@ var DRAG = null;                      // active column-drag state
 
 /* ================= artifact catalog =================
    tier A = cli:true (real CLI launch)   tier B = wrapper exists, no CLI yet (open + clipboard)
-   tier C = wrapper:"" (no tool yet — greyed, roadmap)
-   hidden:true = parked — detected but never displayed (not even via the roadmap checkbox); delete the flag to re-enable
+   tier C = wrapper:"" (no tool yet - greyed, roadmap)
+   hidden:true = parked - detected but never displayed (not even via the roadmap checkbox); delete the flag to re-enable
    gran: "folder" (group matches by parent dir) | "file" (one row per file) | "host" (one aggregate row per host+collection)
 */
 var CATALOG = [
   {key:"evtx",    name:"Event logs",    outKey:"EventLogs", gran:"folder", wrapper:"Hayabusa-Wrapper",      repo:"Hayabusa-Wrapper",      cli:true,
-   desc:"Windows event logs — Sigma detection timeline via Hayabusa"},
+   desc:"Windows event logs - Sigma detection timeline via Hayabusa"},
   {key:"pf",      name:"Prefetch",      outKey:"Prefetch",  gran:"folder", wrapper:"PECmd-Wrapper",         repo:"PECmd-Wrapper",         cli:true,
-   desc:"Execution evidence (.pf) — parsed with PECmd"},
+   desc:"Execution evidence (.pf) - parsed with PECmd"},
   {key:"amcache", name:"Amcache",       outKey:"Amcache",   gran:"file",   wrapper:"AmcacheParser-Wrapper", repo:"AmcacheParser-Wrapper", cli:true,
-   desc:"Program-inventory hive — first-seen + SHA1 via AmcacheParser"},
+   desc:"Program-inventory hive - first-seen + SHA1 via AmcacheParser"},
   {key:"srum",    name:"SRUM",          outKey:"SRUM",      gran:"file",   wrapper:"SrumECmd-Wrapper",      repo:"SrumECmd-Wrapper",      cli:true,
    desc:"System Resource Usage (network / exec history) via SrumECmd"},
   {key:"mft",     name:"$MFT",          outKey:"MFT",       gran:"file",   wrapper:"MFTECmd-Wrapper",       repo:"MFTECmd-Wrapper",       cli:true,
-   desc:"NTFS master file table — file-system timeline via MFTECmd"},
+   desc:"NTFS master file table - file-system timeline via MFTECmd"},
   {key:"sqlite",  name:"SQLite (curated)",outKey:"SQLite",  gran:"host",   wrapper:"SQLECmd-Wrapper",       repo:"SQLECmd-Wrapper",       cli:true,
-   desc:"History / Web Data / Cookies / Login Data / places / ActivitiesCache — per-DB paths in detail; open in SQLECmd"},
+   desc:"History / Web Data / Cookies / Login Data / places / ActivitiesCache - per-DB paths in detail; open in SQLECmd"},
   {key:"sqlx",    name:"Other SQLite",  outKey:"SQLiteMisc",gran:"host",   wrapper:"SQLECmd-Wrapper",       repo:"SQLECmd-Wrapper",       cli:true,
-   desc:"Uncurated .sqlite files — open individually in SQLECmd-Wrapper if of interest"},
+   desc:"Uncurated .sqlite files - open individually in SQLECmd-Wrapper if of interest"},
   {key:"lnk",     name:"LNK files",     outKey:"LNK",       gran:"host",   wrapper:"LECmd-Wrapper",         repo:"LECmd-Wrapper",         cli:true,
-   desc:"Shortcut files (.lnk) — parsed with LECmd; weaponized-shortcut / USB / origin triage"},
+   desc:"Shortcut files (.lnk) - parsed with LECmd; weaponized-shortcut / USB / origin triage"},
   {key:"jump",    name:"Jump lists",    outKey:"JumpLists", gran:"host",   wrapper:"JLECmd-Wrapper",        repo:"JLECmd-Wrapper",        cli:true,
-   desc:"Automatic/Custom destinations — interactive user activity via JLECmd"},
+   desc:"Automatic/Custom destinations - interactive user activity via JLECmd"},
   {key:"rbin",    name:"Recycle Bin",   outKey:"RecycleBin",gran:"host",   wrapper:"RBCmd-Wrapper",         repo:"RBCmd-Wrapper",         cli:true,
-   desc:"Deleted-file metadata ($I / INFO2) — original path, size, deletion time, per-SID, via RBCmd"},
+   desc:"Deleted-file metadata ($I / INFO2) - original path, size, deletion time, per-SID, via RBCmd"},
   {key:"usnj",    name:"$UsnJrnl $J",   outKey:"UsnJrnl",   gran:"file",   wrapper:"MFTECmd-Wrapper",       repo:"MFTECmd-Wrapper",       cli:true,
-   desc:"USN journal ($J) — parsed with MFTECmd via MFTECmd-Wrapper; auto-pairs the volume $MFT when present, else journal-only"},
+   desc:"USN journal ($J) - parsed with MFTECmd via MFTECmd-Wrapper; auto-pairs the volume $MFT when present, else journal-only"},
   {key:"reg",     name:"Registry hives",outKey:"Registry",  gran:"host",   wrapper:"RECmd-Wrapper", repo:"RECmd-Wrapper", cli:true,
-   desc:"SYSTEM / SOFTWARE / SAM / SECURITY / NTUSER / UsrClass — persistence triage via RECmd batch (Kroll)"},
+   desc:"SYSTEM / SOFTWARE / SAM / SECURITY / NTUSER / UsrClass - persistence triage via RECmd batch (Kroll)"},
   {key:"sum",     name:"SUM database",  outKey:"SUM",       gran:"file",   wrapper:"SumECmd-Wrapper",       repo:"SumECmd-Wrapper",       cli:true,
-   desc:"User Access Logging (Current.mdb) — server access by user / IP / role via SumECmd"},
+   desc:"User Access Logging (Current.mdb) - server access by user / IP / role via SumECmd"},
   {key:"webc",    name:"WebCache",      outKey:"WebCache",  gran:"file",   wrapper:"", repo:"", cli:false, hidden:true,
-   desc:"IE/Edge legacy WebCache ESE DB — wrapper planned"}   // parked per operator 2026-07-06 (spec drafted, inclusion TBD)
+   desc:"IE/Edge legacy WebCache ESE DB - wrapper planned"}   // parked per operator 2026-07-06 (spec drafted, inclusion TBD)
 ];
 var CATBYKEY = {};
 (function(){ for(var i=0;i<CATALOG.length;i++) CATBYKEY[CATALOG[i].key]=CATALOG[i]; })();
@@ -345,7 +345,7 @@ function showEl(id,vis){ var e=$(id); if(!e) return; var c=e.className.replace(/
 function trunc(s,n){ s=String(s); return s.length>n?(s.substring(0,n)+"…"):s; }
 function midTrunc(s,n){ s=String(s); if(s.length<=n) return s;
   var half=Math.floor((n-1)/2); return s.substring(0,half)+"…"+s.substring(s.length-half); }
-function fmtSize(n){ if(n==null||n<0) return "—"; if(!n) return "0 B"; var u=["B","KB","MB","GB","TB"], i=0;
+function fmtSize(n){ if(n==null||n<0) return "-"; if(!n) return "0 B"; var u=["B","KB","MB","GB","TB"], i=0;
   while(n>=1024&&i<u.length-1){n/=1024;i++;} return n.toFixed(i?1:0)+" "+u[i]; }
 function uid(){ return new Date().getTime()+""+Math.floor(Math.random()*100000); }
 function batEsc(s){ return String(s).replace(/%/g,"%%"); }
@@ -358,9 +358,9 @@ function nowIso(){ var d=new Date(); function p(x){return (x<10?"0":"")+x;}
 function relPath(p){ if(SCANROOT && p.substring(0,SCANROOT.length).toLowerCase()===SCANROOT.toLowerCase()){
   var r=p.substring(SCANROOT.length); return r.charAt(0)==="\\"?r.substring(1):r; } return p; }
 
-/* ---------- file IO (UTF-8 with network-zone ANSI fallback — same as siblings) ---------- */
+/* ---------- file IO (UTF-8 with network-zone ANSI fallback - same as siblings) ---------- */
 var FILE_IO="adodb";
-function zoneNote(){ appendLog("NOTE: network location — UTF-8 reader (ADODB.Stream) blocked by zone policy; using ANSI file IO. Fine for this tool (paths + JSON are ASCII)."); }
+function zoneNote(){ appendLog("NOTE: network location - UTF-8 reader (ADODB.Stream) blocked by zone policy; using ANSI file IO. Fine for this tool (paths + JSON are ASCII)."); }
 function readUtf8(path){
   if(FILE_IO==="adodb"){
     try{
@@ -393,7 +393,7 @@ function writeUtf8(path,text){
   var f=fso.CreateTextFile(path,true,false); f.Write(text); f.Close();
 }
 
-/* ---------- process execution (async .bat + poll — same as siblings) ---------- */
+/* ---------- process execution (async .bat + poll - same as siblings) ---------- */
 function runBat(lines, show){
   var fso=new ActiveXObject("Scripting.FileSystemObject");
   var sh=new ActiveXObject("WScript.Shell");
@@ -486,7 +486,7 @@ function saveSettings(){
 function manifestPath(){ return TOOLDIR+"\\_Processed\\artifact-finder-manifest.json"; }
 function legacyManifestPath(){ return SCANROOT?(SCANROOT+"\\_Processed\\artifact-finder-manifest.json"):""; }
 function loadManifest(){
-  /* toolkit manifest (new home, written) + legacy scan-root manifest (read-only) — deduped
+  /* toolkit manifest (new home, written) + legacy scan-root manifest (read-only) - deduped
      so pre-0.4 runs keep their state without double entries once they migrate on next write */
   MANIFEST=[];
   var seen={};
@@ -495,7 +495,7 @@ function loadManifest(){
       for(var i=0;i<m.length;i++){ var e=m[i]; if(!e) continue;
         var k=String(e.artifactPath||"").toLowerCase()+"|"+String(e.launchedUtc||"");
         if(seen[k]) continue; seen[k]=1; MANIFEST.push(e); } } } }
-    catch(er){ appendLog("Manifest unreadable ("+label+": "+er.message+") — ignoring that copy."); }
+    catch(er){ appendLog("Manifest unreadable ("+label+": "+er.message+") - ignoring that copy."); }
   }
   take(manifestPath(),"toolkit");
   var lp=legacyManifestPath();
@@ -510,7 +510,7 @@ function appendManifest(entry){
 }
 
 /* ---------- target hostname + new-convention outputs (v0.4) ----------
-   Family convention: <toolkitDir>\_Processed\<Hostname>\<AppName>\  — no per-run stamp folder;
+   Family convention: <toolkitDir>\_Processed\<Hostname>\<AppName>\  - no per-run stamp folder;
    the tools' own datetime-stamped CSV names keep runs apart. Effective host per row:
    multi-host scan → the row's detected host (field covers "(root)" rows); otherwise the field
    wins so the operator can overwrite a bad guess. Empty → [Process] refuses. */
@@ -535,7 +535,7 @@ function guessHostField(){
 function fmtDT(d){ function p(x){return (x<10?"0":"")+x;}
   return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()); }
 function scanToolkitProcessed(){
-  /* the toolkit's own _Processed tree is small and ours — FSO recursion is safe here
+  /* the toolkit's own _Processed tree is small and ours - FSO recursion is safe here
      (unlike the case tree, which is enumerated with dir /s /b for MAX_PATH reasons) */
   TKFILES=[]; RUNINFO=[];
   var root=TOOLDIR+"\\_Processed", riPaths=[];
@@ -574,7 +574,7 @@ function newestUnder(dir){
   return best;
 }
 
-/* ---------- processed inventory (v0.5) — hosts × tools grid over the toolkit _Processed tree ---------- */
+/* ---------- processed inventory (v0.5) - hosts × tools grid over the toolkit _Processed tree ---------- */
 function invApps(){ var seen={}, out=[];
   for(var i=0;i<CATALOG.length;i++){ var c=CATALOG[i]; if(!c.wrapper) continue;
     var a=appFor(c); if(!seen[a]){ seen[a]=1; out.push(a); } }
@@ -620,7 +620,7 @@ function sumText(s){
 function sumHot(s){ return s ? ((s.detections!=null) ? ((s.crit||0)+(s.high||0)) : (s.flagged||0)) : 0; }
 function sumBadge(s){
   if(!s) return "";
-  var hot=sumHot(s)>0, tip=(s.top&&s.top.length)?(" — top: "+s.top.join(", ")):"";
+  var hot=sumHot(s)>0, tip=(s.top&&s.top.length)?(" - top: "+s.top.join(", ")):"";
   if(s.detections!=null)
     return '<div class="'+(hot?"sumbad":"sumok")+'" title="'+esc(sumText(s)+tip)+'">'+(s.crit||0)+'C/'+(s.high||0)+'H &middot; '+nf(s.detections)+' det</div>';
   return '<div class="'+(hot?"sumbad":"sumok")+'" title="'+esc(sumText(s)+tip)+'">&#9873; '+(s.flagged||0)+'/'+nf(s.entries)+(s.maxScore?(' &middot; max '+s.maxScore):'')+'</div>';
@@ -638,26 +638,26 @@ function renderInventory(){
       hostHot+=sumHot(s);
       tds+='<td>'+(cell
         ?('<span class="lnk" data-invopen="'+ref+'" title="Open the newest output in '+esc(mdl.used[i])+'-Wrapper">'+esc(cell.mtime||"?")+' ('+cell.n+')</span> <span class="lnk muted" data-invdir="'+ref+'" title="Open this folder in Explorer">dir</span>'+sumBadge(s))
-        :'<span class="muted">&mdash;</span>')+'</td>'; }
+        :'<span class="muted">-</span>')+'</td>'; }
     rows+='<tr><td><b>'+esc(mdl.hostDisp[hl2])+'</b>'+(hostHot>0?(' <span class="sumbad" title="Flagged / critical+high findings across this host\'s processed tools">&#9873; '+hostHot+'</span>'):'')+'</td>'+tds+'</tr>';
   }
   $("invTbl").innerHTML=rows;
-  $("invSub").innerHTML="&mdash; "+nf(mdl.hlist.length)+" host"+(mdl.hlist.length===1?"":"s")+" &middot; "+esc(TOOLDIR+"\\_Processed");
+  $("invSub").innerHTML="- "+nf(mdl.hlist.length)+" host"+(mdl.hlist.length===1?"":"s")+" &middot; "+esc(TOOLDIR+"\\_Processed");
   showEl("invCard",true);
 }
 function copyTriage(){
-  /* per-host triage block for case notes — newest summary per tool, plain text */
+  /* per-host triage block for case notes - newest summary per tool, plain text */
   var mdl=buildInvModel();
-  if(!mdl.hlist.length){ setStatus("Nothing processed yet — no triage summary to copy.","err"); return; }
-  var out=["Triage summary — "+TOOLDIR+"\\_Processed — "+nowIso()];
+  if(!mdl.hlist.length){ setStatus("Nothing processed yet - no triage summary to copy.","err"); return; }
+  var out=["Triage summary - "+TOOLDIR+"\\_Processed - "+nowIso()];
   for(var r=0;r<mdl.hlist.length;r++){ var hl2=mdl.hlist[r];
     out.push(mdl.hostDisp[hl2]);
     for(var i=0;i<mdl.used.length;i++){ var al3=mdl.used[i].toLowerCase(), cell=mdl.inv[hl2+"|"+al3];
       if(!cell) continue;
       var s=newestSummary(hl2,al3);
       var line="  "+mdl.used[i]+": ";
-      if(s){ line+=sumText(s); if(s.top&&s.top.length) line+=" — top: "+s.top.join(", "); }
-      else line+=cell.n+" output file(s), newest "+(cell.mtime||"?")+" (no summary — pre-summary run or viewer-only tool)";
+      if(s){ line+=sumText(s); if(s.top&&s.top.length) line+=" - top: "+s.top.join(", "); }
+      else line+=cell.n+" output file(s), newest "+(cell.mtime||"?")+" (no summary - pre-summary run or viewer-only tool)";
       out.push(line);
     }
   }
@@ -673,17 +673,17 @@ function invOpen(key){
   if(!target){ setStatus("No output files found in "+dir,"err"); return; }
   var hta=WPATH[cat.wrapper]||"";
   if(!hta){
-    setStatus(cat.wrapper+".hta not found — downloading it first…","muted");
+    setStatus(cat.wrapper+".hta not found - downloading it first…","muted");
     if(!getTool(cat,true)) return;
     hta=WPATH[cat.wrapper]||"";
-    if(!hta){ setStatus("Downloaded "+cat.wrapper+".hta but could not resolve it — see log.","err"); return; }
+    if(!hta){ setStatus("Downloaded "+cat.wrapper+".hta but could not resolve it - see log.","err"); return; }
   }
   var cmd='mshta.exe "'+hta+'" "'+target.path+'"';
   try{ new ActiveXObject("WScript.Shell").Run(cmd,1,false); }
   catch(e){ setStatus("Could not launch "+cat.wrapper+": "+e.message,"err"); return; }
   appendLog("Inventory open: "+cmd);
   setStatus(cat.wrapper+" opened with "+baseName(target.path)
-    +(target.others>0?(" — "+target.others+" more file"+(target.others===1?"":"s")+" in the folder"):""),"ok");
+    +(target.others>0?(" - "+target.others+" more file"+(target.others===1?"":"s")+" in the folder"):""),"ok");
 }
 
 /* ================= SCAN ================= */
@@ -699,14 +699,14 @@ function startScan(){
   BUSY=true; $("scanBtn").disabled=true;
   var fso=new ActiveXObject("Scripting.FileSystemObject");
   var lst=fso.GetSpecialFolder(2)+"\\af_"+uid()+".lst";
-  appendLog("Scanning "+root+" (dir /s /b — long-path safe) …");
+  appendLog("Scanning "+root+" (dir /s /b - long-path safe) …");
   setStatus("Enumerating files…","muted");
   // cmd /u → UTF-16 listing, so non-ASCII path characters survive (read back with FSO unicode mode)
   var ctx=runBatAsync([
     'cmd /u /c dir "'+batEsc(root)+'" /s /b /a:-d > "'+lst+'" 2>> "__LOG__"'
   ], false);
   ctx.onTick=function(s){ setStatus("Enumerating files… "+s+"s","muted"); };
-  ctx.onTimeout=function(){ BUSY=false; $("scanBtn").disabled=false; setStatus("Enumeration still running after 30 min — aborted watching. Is the path a huge network share?","err"); };
+  ctx.onTimeout=function(){ BUSY=false; $("scanBtn").disabled=false; setStatus("Enumeration still running after 30 min - aborted watching. Is the path a huge network share?","err"); };
   ctx.onDone=function(log){
     if(trimStr(log)) appendLog("dir stderr:\n"+log);
     try{ classify(lst); }
@@ -745,7 +745,7 @@ function attrib(p){
 function classify(lstPath){
   setStatus("Classifying…","muted");
   var fso=new ActiveXObject("Scripting.FileSystemObject");
-  if(!fso.FileExists(lstPath)){ setStatus("Enumeration produced no listing — check the log","err"); return; }
+  if(!fso.FileExists(lstPath)){ setStatus("Enumeration produced no listing - check the log","err"); return; }
   var groups={}, total=0, skipped=0, badLines=0;
   PROCCSV=[]; LEGACY={};
   var csvLines=[];
@@ -781,7 +781,7 @@ function classify(lstPath){
     else if(/\.(sqlite|sqlite3)$/.test(base)){ key="sqlx"; }
     if(!key) continue;
     var cat=CATBYKEY[key];
-    if(cat.hidden){ skipped++; continue; }   // parked artifact types — never become rows
+    if(cat.hidden){ skipped++; continue; }   // parked artifact types - never become rows
     gran=cat.gran;
     var at=attrib(p);
     var gpath, gkey;
@@ -818,7 +818,7 @@ function classify(lstPath){
   $("srcpill").innerHTML=nf(ROWS.length)+" artifacts &middot; "+esc(midTrunc(SCANROOT,60));
   appendLog("Scan done: "+nf(total)+" files walked, "+nf(ROWS.length)+" artifact rows, "+nf(skipped)+" noise/sidecar files skipped"
     +(badLines?(", "+nf(badLines)+" unreadable listing lines"):"")+".");
-  setStatus("Found "+nf(ROWS.length)+" artifacts across "+nf(distinctHosts().length)+" host(s) — "+nf(total)+" files scanned","ok");
+  setStatus("Found "+nf(ROWS.length)+" artifacts across "+nf(distinctHosts().length)+" host(s) - "+nf(total)+" files scanned","ok");
   CURTYPE="all"; CURSTATUS="all"; CURHOST=""; QUERY=""; $("q").value="";
   populateHostFilter(); closeDetail();
   render();
@@ -857,14 +857,14 @@ function sortRows(){
 function stampOfOutDir(d){ var m=String(d).match(/_(\d{8}_\d{6})$/); if(!m) return "";
   var s=m[1]; return s.substring(0,4)+"-"+s.substring(4,6)+"-"+s.substring(6,8)+" "+s.substring(9,11)+":"+s.substring(11,13); }
 function outDirHasCsv(outDir){
-  /* "has output" — csv anywhere below, or an .html report (MFT). Sources: the scan root's
+  /* "has output" - csv anywhere below, or an .html report (MFT). Sources: the scan root's
      old-convention listing (PROCCSV), the toolkit _Processed walk (TKFILES), then a live check
      for folders created after those passes ran. */
   if(!outDir) return false;
   var ol=String(outDir).toLowerCase(), olp=ol+"\\";
   for(var i=0;i<PROCCSV.length;i++){ if(PROCCSV[i].substring(0,olp.length)===olp) return true; }
   for(var t=0;t<TKFILES.length;t++){ if(TKFILES[t].p.substring(0,olp.length)===olp) return true; }
-  if(folderExists(outDir)){ // outDir created after the listing (same session) — check live
+  if(folderExists(outDir)){ // outDir created after the listing (same session) - check live
     try{ var fso=new ActiveXObject("Scripting.FileSystemObject");
       var e=new Enumerator(fso.GetFolder(outDir).Files);
       for(; !e.atEnd(); e.moveNext()){ if(/\.(csv|html?)$/i.test(e.item().Name+"")) return true; } }catch(er){}
@@ -885,7 +885,7 @@ function computeStatus(row){
     row.status="launch"; row.statusDate=String(best.launchedUtc||"").substring(0,16).replace("T"," ");
     return;
   }
-  // 1b. wrapper-written runinfo.json binding — exact artifact path, survives manifest loss
+  // 1b. wrapper-written runinfo.json binding - exact artifact path, survives manifest loss
   var bestRi=null;
   for(var q=0;q<RUNINFO.length;q++){ var ri=RUNINFO[q];
     if(ri.input && String(ri.input).toLowerCase()===pl){
@@ -893,7 +893,7 @@ function computeStatus(row){
   if(bestRi){ var nb2=newestUnder(bestRi.outDir);
     if(nb2){ row.status="proc"; row.lastOut=bestRi.outDir;
       row.statusDate=String(bestRi.finishedUtc||"").substring(0,16).replace("T"," ")||nb2.mtime; return; } }
-  // 2. new-convention folder (toolkit _Processed\<host>\<app>) with output — covers wrapper
+  // 2. new-convention folder (toolkit _Processed\<host>\<app>) with output - covers wrapper
   //    runs done outside the finder too (same convention family-wide since v0.4)
   var nd=newOutDir(row);
   if(nd){ var nb=newestUnder(nd);
@@ -950,15 +950,15 @@ function renderTypeChips(){
   $("typeCats").innerHTML=h;
 }
 function tierChip(cat){
-  if(cat.cli) return '<span class="chip t-a" title="CLI-ready — launches pre-filled">CLI</span>';
-  if(cat.wrapper) return '<span class="chip t-b" title="Wrapper exists but its command-line retrofit is pending — opens bare with the path on your clipboard">manual</span>';
-  return '<span class="chip t-c" title="No wrapper tool yet — on the roadmap">no tool</span>';
+  if(cat.cli) return '<span class="chip t-a" title="CLI-ready - launches pre-filled">CLI</span>';
+  if(cat.wrapper) return '<span class="chip t-b" title="Wrapper exists but its command-line retrofit is pending - opens bare with the path on your clipboard">manual</span>';
+  return '<span class="chip t-c" title="No wrapper tool yet - on the roadmap">no tool</span>';
 }
 function statusPill(r){
   if(r.status==="proc") return '<span class="st st-proc">&#10004; processed'+(r.statusDate?(" "+esc(r.statusDate)):"")+'</span>';
   if(r.status==="legacy") return '<span class="st st-legacy" title="A CSV that looks like this tool\'s output exists in the case tree (pre-finder run). Advisory only.">&#10004;? legacy</span>';
   if(r.status==="launch") return '<span class="st st-launch">&#9684; launched'+(r.statusDate?(" "+esc(r.statusDate)):"")+'</span>';
-  if(r.status==="notool") return '<span class="st st-notool">&mdash; no tool</span>';
+  if(r.status==="notool") return '<span class="st st-notool">- no tool</span>';
   return '<span class="st st-none">&#9679; not processed</span>';
 }
 var WPATH={};   // wrapper name -> resolved full HTA path ("" if not found); refreshed by renderToolStrip()
@@ -967,9 +967,9 @@ function verCmp(a,b){ a=String(a).split("."); b=String(b).split("."); var n=Math
 function htaVersion(path){
   try{ var t=readUtf8(path); var m=t.match(/APP_VERSION\s*=\s*"([^"]+)"/); return m?m[1]:""; }catch(e){ return ""; }
 }
-/* Wrapper resolution: gather every candidate copy — next to this app, plus sibling dev folders under
+/* Wrapper resolution: gather every candidate copy - next to this app, plus sibling dev folders under
    the same parent (the wrappers live next door on the dev box: ..\Hayabusa-EventLogs\,
-   ..\PECmd-Prefetch\repo\, ..\SrumECmd-SRUM\publish\, …) — and pick the HIGHEST APP_VERSION, so a
+   ..\PECmd-Prefetch\repo\, ..\SrumECmd-SRUM\publish\, …) - and pick the HIGHEST APP_VERSION, so a
    stale copy at a folder root can't shadow the current one in repo\/publish\. Only when nothing is
    found locally does Get tool download. */
 function resolveWrapper(cat){
@@ -1002,7 +1002,7 @@ function actionButtons(r,i){
     if(done) h+='<button class="btn sm primary" data-act="view" data-r="'+i+'" title="Open the newest processed output in '+esc(cat.wrapper)+(have?'':' (downloads the tool from GitHub first)')+'">Open</button>';
     if(!have && !done) h+='<button class="btn sm amber" data-act="get" data-r="'+i+'" title="Download '+esc(cat.wrapper)+'.hta from GitHub into this folder">Get tool</button>';
     else if(have && cat.cli) h+='<button class="btn sm'+(done?"":" primary")+'" data-act="proc" data-r="'+i+'">'+(r.status==="proc"?"Re-process":"Process")+'</button>';
-    else if(have) h+='<button class="btn sm amber" data-act="proc" data-r="'+i+'" title="CLI retrofit pending — opens the tool and copies the artifact path to your clipboard">Open tool</button>';
+    else if(have) h+='<button class="btn sm amber" data-act="proc" data-r="'+i+'" title="CLI retrofit pending - opens the tool and copies the artifact path to your clipboard">Open tool</button>';
   }
   h+='<button class="btn sm" data-act="open" data-r="'+i+'">Open folder</button>';
   return h;
@@ -1028,7 +1028,7 @@ function render(){
         if(rj.status==="proc") done++;
         if(rj.cat.wrapper && rj.cat.cli && (rj.status==="none"||rj.status==="legacy")) elig++; } }
       html+='<tr class="grp" data-grp="'+esc(hk)+'"><td colspan="7">'
-        +(elig>0?('<button class="btn" data-pah="'+esc(hk)+'" style="float:right;font-weight:normal" title="Launch every unprocessed tool-ready artifact in this group with /auto — one every 3 seconds, each in its own wrapper window">Process all ('+elig+')</button>'):'')
+        +(elig>0?('<button class="btn" data-pah="'+esc(hk)+'" style="float:right;font-weight:normal" title="Launch every unprocessed tool-ready artifact in this group with /auto - one every 3 seconds, each in its own wrapper window">Process all ('+elig+')</button>'):'')
         +(open?"&#9660; ":"&#9654; ")
         +esc(r.host)+(r.coll?(' <span class="muted" style="font-weight:normal">'+esc(r.coll)+'</span>'):'')
         +' &nbsp;<span class="muted" style="font-weight:normal">'+nf(cnt)+' artifact'+(cnt===1?"":"s")+' &middot; '+nf(done)+' processed</span></td></tr>';
@@ -1081,7 +1081,7 @@ function setupColResize(){
   for(var i=0;i<ths.length;i++){
     var g=document.createElement("div");
     g.className="cgrip"; g.setAttribute("data-ci",String(i));
-    g.title="Drag to resize column — double-click to reset all widths";
+    g.title="Drag to resize column - double-click to reset all widths";
     g.onmousedown=gripDown; g.ondblclick=gripReset;
     ths[i].appendChild(g);
   }
@@ -1140,13 +1140,13 @@ function populateHostFilter(){
 /* ---------- detail pane ---------- */
 /* ---------- case window (family, 2026-07-07) ----------
    The optional Case window (winFrom/winTo, UTC dates) rides on EVERY wrapper launch as
-   /from:/to:, which prefills the wrapper's date filter (filter only — never scored). Accept only
+   /from:/to:, which prefills the wrapper's date filter (filter only - never scored). Accept only
    yyyy-mm-dd; anything else is treated as blank (one status warning). Returns {from,to,args}. */
 function caseWin(warn){
   var f=trimStr($("winFrom").value), t2=trimStr($("winTo").value), bad=false;
   if(f && !/^\d{4}-\d{2}-\d{2}$/.test(f)){ f=""; bad=true; }
   if(t2 && !/^\d{4}-\d{2}-\d{2}$/.test(t2)){ t2=""; bad=true; }
-  if(bad && warn) setStatus("Case window ignored — dates must be yyyy-mm-dd (UTC).","err");
+  if(bad && warn) setStatus("Case window ignored - dates must be yyyy-mm-dd (UTC).","err");
   return {from:f, to:t2, args:(f?(' /from:'+f):'')+(t2?(' /to:'+t2):'')};
 }
 function buildCmd(row){
@@ -1175,7 +1175,7 @@ function renderDetail(row){
     h+='<h3>Processing history ('+hist.length+')</h3><div class="dl">';
     for(var j=hist.length-1;j>=0;j--){ var e=hist[j];
       h+='<div><span class="kv">'+esc(e.launchedUtc||"?")+'</span> &middot; '+esc(e.wrapper||"?")
-        +(e.outDir?(' &rarr; '+esc(e.outDir)+(outDirHasCsv(e.outDir)?' <span class="ok">(has CSV)</span>':' <span class="muted">(no CSV)</span>')):' <span class="muted">(manual — no outDir)</span>')+'</div>'; }
+        +(e.outDir?(' &rarr; '+esc(e.outDir)+(outDirHasCsv(e.outDir)?' <span class="ok">(has CSV)</span>':' <span class="muted">(no CSV)</span>')):' <span class="muted">(manual - no outDir)</span>')+'</div>'; }
     h+='</div>';
   }
   if(row.status==="legacy"){
@@ -1203,35 +1203,35 @@ function doProcess(row){
   }
   var sh=new ActiveXObject("WScript.Shell");
   if(!cat.cli){
-    // tier B — wrapper lacks the CLI retrofit: open bare + path on clipboard
+    // tier B - wrapper lacks the CLI retrofit: open bare + path on clipboard
     try{ window.clipboardData.setData("Text", row.path); }catch(e){}
     try{ sh.Run('mshta.exe "'+hta+'"',1,false); }
     catch(e2){ setStatus("Could not launch "+cat.wrapper+": "+e2.message,"err"); return; }
-    appendManifest({artifactPath:row.path, key:row.key, host:row.host, wrapper:cat.wrapper, outDir:"", launchedUtc:nowIso(), cmd:"(manual — no CLI yet)"});
+    appendManifest({artifactPath:row.path, key:row.key, host:row.host, wrapper:cat.wrapper, outDir:"", launchedUtc:nowIso(), cmd:"(manual - no CLI yet)"});
     row.status="launch"; row.statusDate=nowIso().substring(0,16).replace("T"," ");
-    setStatus(cat.wrapper+" opened — artifact path is on your clipboard; paste it into the tool's input box.","ok");
+    setStatus(cat.wrapper+" opened - artifact path is on your clipboard; paste it into the tool's input box.","ok");
     appendLog("Launched (manual) "+cat.wrapper+" for "+row.path);
     render(); if(DETROW===row) renderDetail(row);
     return;
   }
   var host=hostFor(row);
   if(!host){
-    setStatus("Target hostname is required — this row has no detected host. Type the hostname in the box above, then [Process] again.","err");
+    setStatus("Target hostname is required - this row has no detected host. Type the hostname in the box above, then [Process] again.","err");
     try{ $("hostName").focus(); }catch(ef){}
     return;
   }
   if(!launchCli(row,false)) return;   // launchCli reports its own errors via setStatus/log
-  setStatus(cat.wrapper+" launched for "+row.host+" "+row.label+" — review inside the tool, then start it. Rescan afterwards to see ✔.","ok");
+  setStatus(cat.wrapper+" launched for "+row.host+" "+row.label+" - review inside the tool, then start it. Rescan afterwards to see ✔.","ok");
   render(); if(DETROW===row) renderDetail(row);
 }
-/* shared launch core — used by [Process] (honours the bulk checkbox) and Process-all (forces /auto) */
+/* shared launch core - used by [Process] (honours the bulk checkbox) and Process-all (forces /auto) */
 function launchCli(row, forceAuto){
   var cat=row.cat;
   var hta=WPATH[cat.wrapper]||"";
   if(!hta){
     if(!getTool(cat,true)) return false;               // auto-download: the click IS the consent
     hta=WPATH[cat.wrapper]||"";
-    if(!hta){ setStatus("Could not resolve "+cat.wrapper+".hta — see log.","err"); return false; }
+    if(!hta){ setStatus("Could not resolve "+cat.wrapper+".hta - see log.","err"); return false; }
   }
   var host=hostFor(row);
   if(!host){ appendLog("Skipped (no hostname): "+row.path); return false; }
@@ -1249,24 +1249,24 @@ function launchCli(row, forceAuto){
   return true;
 }
 /* ---------- Process all for a host group (v0.7) ----------
-   Queues every unprocessed tool-ready artifact of the group with /auto — one launch every
+   Queues every unprocessed tool-ready artifact of the group with /auto - one launch every
    3 seconds so mshta windows and tool consoles stagger instead of stampeding. */
 var PAH=null;   // {hk, rows, i, ok}
 function processAllHost(hk){
-  if(PAH){ setStatus("A Process-all queue is already running ("+PAH.hk.split("|")[0]+") — let it finish.","err"); return; }
+  if(PAH){ setStatus("A Process-all queue is already running ("+PAH.hk.split("|")[0]+") - let it finish.","err"); return; }
   var rows=[], i;
   for(i=0;i<ROWS.length;i++){ var r=ROWS[i];
     if((r.host+(r.coll?("|"+r.coll):""))!==hk) continue;
     if(!r.cat.wrapper || !r.cat.cli) continue;
     if(r.status==="proc"||r.status==="launch") continue;
     rows.push(r); }
-  if(!rows.length){ setStatus("Nothing to process in this group — every tool-ready artifact is already processed or launched.","muted"); return; }
+  if(!rows.length){ setStatus("Nothing to process in this group - every tool-ready artifact is already processed or launched.","muted"); return; }
   var hostName=hk.split("|")[0];
   if(!hostFor(rows[0])){
-    setStatus("Target hostname is required first — type it in the box above, then Process all again.","err");
+    setStatus("Target hostname is required first - type it in the box above, then Process all again.","err");
     try{ $("hostName").focus(); }catch(e){} return;
   }
-  if(!confirm("Process ALL for "+hostName+"?\n\n"+rows.length+" artifact(s) will be launched with /auto — one every 3 seconds, each opening its own wrapper window and starting immediately.")) return;
+  if(!confirm("Process ALL for "+hostName+"?\n\n"+rows.length+" artifact(s) will be launched with /auto - one every 3 seconds, each opening its own wrapper window and starting immediately.")) return;
   PAH={hk:hk, rows:rows, i:0, ok:0};
   pahNext();
 }
@@ -1277,7 +1277,7 @@ function pahNext(){
   PAH.i++;
   render();
   if(PAH.i>=PAH.rows.length){
-    setStatus("Process all: "+PAH.ok+" of "+PAH.rows.length+" launched for "+PAH.hk.split("|")[0]+" — the wrappers are running; rescan when they finish to see ✔.","ok");
+    setStatus("Process all: "+PAH.ok+" of "+PAH.rows.length+" launched for "+PAH.hk.split("|")[0]+" - the wrappers are running; rescan when they finish to see ✔.","ok");
     PAH=null; return;
   }
   setStatus("Process all: launching "+(PAH.i+1)+"/"+PAH.rows.length+" for "+PAH.hk.split("|")[0]+"…","muted");
@@ -1295,7 +1295,7 @@ function openFolder(row){
 /* ---------- open processed output back in its wrapper ----------
    [Open] on a ✔ processed / ✔? legacy row: find the newest run output for that exact artifact
    (manifest first, _Processed run-folder fallback second, legacy CSV last), download the wrapper
-   from GitHub if it's missing (no extra prompt — the click IS the consent), then launch
+   from GitHub if it's missing (no extra prompt - the click IS the consent), then launch
    mshta "<Wrapper>.hta" "<output>" so the wrapper auto-loads it (family CLI: csv/html → view). */
 function outDirsNewestFirst(row){
   var pl=row.path.toLowerCase(), ents=[], dirs=[], seen={}, i;
@@ -1304,7 +1304,7 @@ function outDirsNewestFirst(row){
   ents.sort(function(a,b){ var x=String(a.launchedUtc||""), y=String(b.launchedUtc||""); return x<y?1:(x>y?-1:0); });
   for(i=0;i<ents.length;i++){ var d=String(ents[i].outDir), dl=d.toLowerCase();
     if(!seen[dl]){ seen[dl]=1; dirs.push(d); } }
-  // runinfo.json bindings (wrapper-side provenance — exact artifact match)
+  // runinfo.json bindings (wrapper-side provenance - exact artifact match)
   for(i=0;i<RUNINFO.length;i++){ var ri2=RUNINFO[i];
     if(ri2.input && String(ri2.input).toLowerCase()===pl && ri2.outDir){
       var rl=ri2.outDir.toLowerCase();
@@ -1331,7 +1331,7 @@ function outDirsNewestFirst(row){
   return all;
 }
 function pickOpenTarget(row,dir){
-  /* shared _Processed\<host>\<app> folders accumulate runs — pick the NEWEST matching file
+  /* shared _Processed\<host>\<app> folders accumulate runs - pick the NEWEST matching file
      (old per-run stamped folders held one run, where newest == only). */
   var csv=[], html=[], i;
   try{ var fso=new ActiveXObject("Scripting.FileSystemObject");
@@ -1348,7 +1348,7 @@ function pickOpenTarget(row,dir){
     var ol=(String(dir)+"\\").toLowerCase(), sub=[];
     for(i=0;i<PROCCSV.length;i++){ if(PROCCSV[i].substring(0,ol.length)===ol) sub.push(PROCCSV[i]); }
     for(i=0;i<TKFILES.length;i++){ if(TKFILES[i].p.substring(0,ol.length)===ol && /\.csv$/i.test(TKFILES[i].p)) sub.push(TKFILES[i].p); }
-    if(sub.length){ sub.sort(); return {path:sub[sub.length-1], others:sub.length-1}; }   // stamped names — last ≈ newest
+    if(sub.length){ sub.sort(); return {path:sub[sub.length-1], others:sub.length-1}; }   // stamped names - last ≈ newest
     return null;
   }
   var pick=null;
@@ -1370,20 +1370,20 @@ function openProcessed(row){
     var lp=LEGACY[row.host.toLowerCase()+"|"+row.key];
     if(lp && fileExists(lp)) target={path:lp, others:0, legacy:true};
   }
-  if(!target){ setStatus("No processed output found for this artifact — rescan first, or [Re-process] it.","err"); return; }
+  if(!target){ setStatus("No processed output found for this artifact - rescan first, or [Re-process] it.","err"); return; }
   var hta=WPATH[cat.wrapper]||"";
   if(!hta){
-    setStatus(cat.wrapper+".hta not found — downloading it first…","muted");
+    setStatus(cat.wrapper+".hta not found - downloading it first…","muted");
     if(!getTool(cat,true)) return;                             // getTool sets its own error status
     hta=WPATH[cat.wrapper]||"";
-    if(!hta){ setStatus("Downloaded "+cat.wrapper+".hta but could not resolve it — see log.","err"); return; }
+    if(!hta){ setStatus("Downloaded "+cat.wrapper+".hta but could not resolve it - see log.","err"); return; }
   }
   var cmd='mshta.exe "'+hta+'" "'+target.path+'"';
   try{ new ActiveXObject("WScript.Shell").Run(cmd,1,false); }
   catch(e){ setStatus("Could not launch "+cat.wrapper+": "+e.message,"err"); return; }
   appendLog("Open output: "+cmd);
   setStatus(cat.wrapper+" opened with "+baseName(target.path)
-    +(target.others>0?(" — "+target.others+" more file"+(target.others===1?"":"s")+" in the run folder (switch inside the tool)"):"")
+    +(target.others>0?(" - "+target.others+" more file"+(target.others===1?"":"s")+" in the run folder (switch inside the tool)"):"")
     +(target.legacy?" (legacy pre-finder output)":""),"ok");
 }
 function getTool(cat,auto){
@@ -1398,7 +1398,7 @@ function getTool(cat,auto){
   var L=[];
   L.push("$ErrorActionPreference='Stop'");
   L.push("[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12");
-  // repos are split across default branches (PECmd/AmcacheParser=master, the rest=main) — try both
+  // repos are split across default branches (PECmd/AmcacheParser=master, the rest=main) - try both
   L.push("$ok=$false");
   L.push("foreach($u in @('"+GH_RAW+cat.repo+"/main/"+fn+"','"+GH_RAW+cat.repo+"/master/"+fn+"')){");
   L.push("  try{ Invoke-WebRequest -UseBasicParsing -Uri $u -OutFile '"+dq+"' -Headers @{ 'User-Agent'='DFIR-Artifact-Finder' }");
@@ -1411,7 +1411,7 @@ function getTool(cat,auto){
   try{ fso.DeleteFile(ps1); }catch(e0){}
   appendLog("--- download "+cat.wrapper+" ---\n"+r.log);
   if((r.log+"").indexOf("GET_OK")>=0 && fileExists(dest)){
-    setStatus(cat.wrapper+".hta installed"+(auto?".":" — click Process again."),"ok"); renderToolStrip(); render();
+    setStatus(cat.wrapper+".hta installed"+(auto?".":" - click Process again."),"ok"); renderToolStrip(); render();
     return true;
   } else {
     setStatus("Download failed (offline, or the repo isn't published yet). Place "+cat.wrapper+".hta next to this app manually.","err");
@@ -1428,20 +1428,20 @@ function renderToolStrip(){
     h+='<span class="tk '+(p?"have":"miss")+'" title="'+esc(p||"not found next to this app or in sibling dev folders")+'">'
       +esc(c.wrapper)+(p?(" &#10004;"+(local?"":' <span class="muted">(dev folder)</span>')):" missing")
       +(p?"":' <span class="lnk" data-get="'+esc(c.key)+'">get</span>')
-      +(c.cli?'':' <span class="muted" title="CLI retrofit pending — Process opens it bare with the path on your clipboard">(manual)</span>')+'</span>';
+      +(c.cli?'':' <span class="muted" title="CLI retrofit pending - Process opens it bare with the path on your clipboard">(manual)</span>')+'</span>';
   }
-  /* shared IOC list — IOC.csv is the editable source; every wrapper auto-loads the flattened IOC.txt at launch */
+  /* shared IOC list - IOC.csv is the editable source; every wrapper auto-loads the flattened IOC.txt at launch */
   if(fileExists(iocCsvPath()) || fileExists(iocTxtPath())){
     var iocN=iocCount(); if(iocN<0) iocN=0;
-    h+='<span class="tk have" title="Shared IOC list — IOC.csv is the editable source (Value/Type/Note/Case); every wrapper auto-loads the generated IOC.txt at launch">IOC &#10004; '+iocN+' term'+(iocN===1?"":"s")+' <span class="lnk" data-ioc="edit">edit</span></span>';
+    h+='<span class="tk have" title="Shared IOC list - IOC.csv is the editable source (Value/Type/Note/Case); every wrapper auto-loads the generated IOC.txt at launch">IOC &#10004; '+iocN+' term'+(iocN===1?"":"s")+' <span class="lnk" data-ioc="edit">edit</span></span>';
   } else {
-    h+='<span class="tk miss" title="No shared IOC list yet — add typed, annotated IOCs; saved as IOC.csv and flattened to IOC.txt for every wrapper">IOC list &mdash; <span class="lnk" data-ioc="new">create</span></span>';
+    h+='<span class="tk miss" title="No shared IOC list yet - add typed, annotated IOCs; saved as IOC.csv and flattened to IOC.txt for every wrapper">IOC list - <span class="lnk" data-ioc="new">create</span></span>';
   }
   $("toolStrip").innerHTML=h;
 }
 /* ---------- IOC editor: IOC.csv (editable source) -> IOC.txt (wire format the wrappers read) ----------
    The Finder reads no artifact contents itself, so it carries no CSV parser. IOC.csv is the sole
-   exception — parseCSV/parseCSVLine/countQuotes are copied VERBATIM from PECmd-Wrapper.hta (RFC4180-ish:
+   exception - parseCSV/parseCSVLine/countQuotes are copied VERBATIM from PECmd-Wrapper.hta (RFC4180-ish:
    quoted fields, doubled quotes, embedded commas/newlines). */
 function countQuotes(s){ var c=0, idx=-1; while((idx=s.indexOf('"',idx+1))>=0) c++; return c; }
 function parseCSVLine(line){
@@ -1516,7 +1516,7 @@ function iocSaveCsv(arr){
 /* §2 flatten: IOC.txt = generated header + one value per line, deduped case-insensitively,
    blanks skipped, order otherwise preserved. Returns the flattened term count. */
 function iocFlatten(arr){
-  var out=["# GENERATED from IOC.csv by DFIR-Artifact-Finder — edit via the Finder's IOC editor.",
+  var out=["# GENERATED from IOC.csv by DFIR-Artifact-Finder - edit via the Finder's IOC editor.",
            "# One term per line; every wrapper auto-loads this file at launch."];
   var seen={};
   for(var i=0;i<arr.length;i++){ var v=trimStr(arr[i].v); if(!v) continue;
@@ -1539,7 +1539,7 @@ function iocCount(){
   return -1;
 }
 
-/* both chip actions route here (create/edit) — Notepad is no longer the primary path */
+/* both chip actions route here (create/edit) - Notepad is no longer the primary path */
 function iocEdit(mode){ openIocEditor(); }
 function openIocEditor(){
   IOC_ROWS=iocLoadCsv();
@@ -1575,7 +1575,7 @@ function iocSyncFromDom(){
     if(c) IOC_ROWS[i].c=c.value;
   }
 }
-/* on Value change: auto-pick the type — but only when the operator hasn't already set one (Type still 'keyword') */
+/* on Value change: auto-pick the type - but only when the operator hasn't already set one (Type still 'keyword') */
 function iocAutoType(el){
   var id=el.id+""; var i=id.substring(id.lastIndexOf("_")+1);
   var sel=$("ioc_t_"+i); if(!sel || sel.value!=="keyword") return;
@@ -1600,15 +1600,15 @@ function iocSave(){
   catch(e){ $("iocStatus").innerHTML=esc("Save failed: "+e.message); setStatus("IOC save failed: "+e.message,"err"); return; }
   IOC_ROWS = clean.length ? clean : [{ v:"", t:"keyword", n:"", c:"" }];
   renderIocTable(); renderToolStrip();
-  var msg="Saved "+n+" IOC"+(n===1?"":"s")+" — wrappers pick them up on their next launch"
+  var msg="Saved "+n+" IOC"+(n===1?"":"s")+" - wrappers pick them up on their next launch"
     +(dups?(" ("+dups+" duplicate"+(dups===1?"":"s")+" dropped)"):"");
   $("iocStatus").innerHTML=esc(msg); setStatus(msg,"ok");
   appendLog("IOC editor: wrote IOC.csv ("+clean.length+" rows) + IOC.txt ("+n+" terms)");
 }
-/* raw access to the generated wire file (read-mostly — regenerated on the next Save) */
+/* raw access to the generated wire file (read-mostly - regenerated on the next Save) */
 function iocOpenNotepad(){
   var p=iocTxtPath();
-  if(!fileExists(p)){ setStatus("No IOC.txt yet — add a term and Save first.","err"); return; }
+  if(!fileExists(p)){ setStatus("No IOC.txt yet - add a term and Save first.","err"); return; }
   try{ new ActiveXObject("WScript.Shell").Run('notepad.exe "'+p+'"',1,false); }
   catch(e){ setStatus("Could not open Notepad: "+e.message,"err"); }
 }
@@ -1633,7 +1633,7 @@ function copyNotes(){
   var rows=window.__visRows||[];
   if(!rows.length){ setStatus("Nothing to copy","err"); return; }
   var out=[], statName={none:"NOT PROCESSED",launch:"LAUNCHED",proc:"PROCESSED",legacy:"PROCESSED(legacy?)",notool:"NO TOOL"};
-  out.push("Artifact board — "+SCANROOT+" — "+nowIso());
+  out.push("Artifact board - "+SCANROOT+" - "+nowIso());
   for(var i=0;i<rows.length;i++){ var r=rows[i];
     out.push(r.host+" | "+r.label+" | "+nf(r.files)+" file(s) | "+statName[r.status]+(r.statusDate?(" "+r.statusDate):"")+" | "+relPath(r.path)); }
   try{ window.clipboardData.setData("Text", out.join("\r\n")); setStatus("Copied "+rows.length+" lines to clipboard","ok"); }
@@ -1642,7 +1642,7 @@ function copyNotes(){
 
 /* ---------- command line ----------
    mshta.exe "DFIR-Artifact-Finder.hta" ["<scanRoot>"] [/scan]  */
-/* family fix: <htaId>.commandLine is UNDEFINED in docMode 9+ (IE=edge) — recover the real command
+/* family fix: <htaId>.commandLine is UNDEFINED in docMode 9+ (IE=edge) - recover the real command
    line via WMI from the newest mshta.exe process running this .hta (same as the 6 wrappers). */
 function getCommandLine(){
   try{ var cl=afHta.commandLine+""; if(cl && cl!=="undefined") return cl; }catch(e){}
@@ -1710,7 +1710,7 @@ function init(){
   renderToolStrip();
   scanToolkitProcessed(); renderInventory();   // processed inventory is available before any scan
 
-  // A± zooms #content only — zooming <body> made the header (and these buttons)
+  // A± zooms #content only - zooming <body> made the header (and these buttons)
   // slide off-screen (which is what happened when body-zoom widened the header past the window edge).
   var zoom=0.9, zContent=$("content");
   function applyZoom(){ zContent.style.zoom=zoom; var p=Math.round(zoom*100)+"%";
@@ -1721,16 +1721,16 @@ function init(){
   $("scanBtn").onclick=startScan;
   $("browseBtn").onclick=function(){
     try{ var sha=new ActiveXObject("Shell.Application");
-      var fld=sha.BrowseForFolder(0,"Select the case folder to scan (collection trees are fine — the scan recurses).",0x51);
+      var fld=sha.BrowseForFolder(0,"Select the case folder to scan (collection trees are fine - the scan recurses).",0x51);
       if(fld){ var p=""; try{ p=fld.Self.Path+""; }catch(e2){}
         if(/^[a-z]:\\|^\\\\/i.test(p)) $("rootPath").value=p;
-        else if(p) setStatus("That selection has no filesystem path — pick a real folder.","err"); }
+        else if(p) setStatus("That selection has no filesystem path - pick a real folder.","err"); }
     }catch(e){ setStatus("Folder picker unavailable: "+e.message,"err"); }
   };
   $("optAuto").onclick=function(){ saveSettings(); if(DETROW) renderDetail(DETROW); };
   $("optShowC").onclick=function(){ SHOWC=this.checked; saveSettings(); if(ROWS.length) render(); };
   var hTimer=null;
-  $("hostName").onkeyup=function(){ HOST_TOUCHED=true;        // operator's value — guesses stop overwriting it
+  $("hostName").onkeyup=function(){ HOST_TOUCHED=true;        // operator's value - guesses stop overwriting it
     if(hTimer) window.clearTimeout(hTimer);
     hTimer=window.setTimeout(function(){                       // statuses + launch commands depend on the host
       if(ROWS.length){ for(var i=0;i<ROWS.length;i++) computeStatus(ROWS[i]); render(); if(DETROW) renderDetail(DETROW); }
@@ -1808,7 +1808,7 @@ function init(){
   if(cli.from) $("winFrom").value=cli.from;   // case window prefill (carried onto every launch as /from:/to:)
   if(cli.to) $("winTo").value=cli.to;
   if(cli.scan && folderExists($("rootPath").value)){
-    appendLog("CLI: /scan — scanning "+$("rootPath").value);
+    appendLog("CLI: /scan - scanning "+$("rootPath").value);
     window.setTimeout(startScan, 200);
   }
   if(isNetworkPath(TOOLDIR))
@@ -1841,7 +1841,7 @@ function checkSelfUpdate(){
         if(!url) url="https://github.com/"+SELF_REPO+"/releases/download/v"+latest+"/"+SELF_HTA;
         SELF_LATEST=latest; SELF_ASSET_URL=url;
         var b=$("selfUpd"); if(b){ b.innerHTML="Update to v"+latest; b.className="btn primary";
-          b.title="A newer "+SELF_HTA+" (v"+latest+") is on GitHub — click to download & replace this file"; }
+          b.title="A newer "+SELF_HTA+" (v"+latest+") is on GitHub - click to download & replace this file"; }
       }catch(e){} };
     x.send();
   }catch(e){}
@@ -1864,9 +1864,9 @@ function doSelfUpdate(){
   try{ var r=runBat(['powershell -NoProfile -ExecutionPolicy Bypass -File "'+ps1+'" > "__LOG__" 2>&1']);
     try{ fso.DeleteFile(ps1); }catch(e0){}
     if((r.log+"").indexOf("SELFUPD_OK")>=0){ var b=$("selfUpd"); if(b) b.className="btn primary hide";
-      setStatus("Updated to v"+SELF_LATEST+" — CLOSE and reopen the app to run the new version.","ok");
+      setStatus("Updated to v"+SELF_LATEST+" - CLOSE and reopen the app to run the new version.","ok");
       try{ alert("Update installed (v"+SELF_LATEST+").\n\nClose and reopen "+SELF_HTA+" to run the new version."); }catch(e){}
-    } else { appendLog("--- self-update ---\n"+r.log); setStatus("Self-update failed — see log; download manually from GitHub if needed.","err"); }
+    } else { appendLog("--- self-update ---\n"+r.log); setStatus("Self-update failed - see log; download manually from GitHub if needed.","err"); }
   }catch(e){ setStatus("Self-update failed: "+e.message,"err"); }
 }
 window.onload=function(){ init(); try{ window.setTimeout(checkSelfUpdate,600); }catch(e){} };
@@ -1876,49 +1876,49 @@ window.onload=function(){ init(); try{ window.setTimeout(checkSelfUpdate,600); }
     <span class="x" onclick="closeHelp()" title="Close">&times;</span>
     <h2>DFIR Windows Artifact Finder <span class="muted" style="font-size:13px;font-weight:400" id="helpVer"></span></h2>
     <div class="gh muted">GitHub: <span class="lnk" onclick="openUrl(GITHUB)">https://github.com/bpmorris22/DFIR-Windows-Artifact-Finder</span></div>
-    <p>Master triage launcher for the wrapper family. Point it at a case folder (Velociraptor / KAPE collection trees), it scans recursively, identifies every artifact a wrapper can process, and presents a host-grouped launch board — <b>[Process]</b> opens the right wrapper pre-filled, <b>[Open]</b> loads already-processed output back into its wrapper for analysis. The finder never parses artifact contents itself.</p>
+    <p>Master triage launcher for the wrapper family. Point it at a case folder (Velociraptor / KAPE collection trees), it scans recursively, identifies every artifact a wrapper can process, and presents a host-grouped launch board - <b>[Process]</b> opens the right wrapper pre-filled, <b>[Open]</b> loads already-processed output back into its wrapper for analysis. The finder never parses artifact contents itself.</p>
     <h3>Quick start</h3>
     <ul>
-      <li>Keep the wrapper <code>.hta</code>s next to this app (the toolkit folder) — the strip at the bottom of Scan control shows what's present; missing ones download from GitHub on demand.</li>
+      <li>Keep the wrapper <code>.hta</code>s next to this app (the toolkit folder) - the strip at the bottom of Scan control shows what's present; missing ones download from GitHub on demand.</li>
       <li>Pick a case folder &rarr; <b>Scan</b>. Confirm the <b>Target hostname</b> guess (it names the output folders). Click <b>[Process]</b> on a row, review inside the wrapper, run it, rescan to see &#10004;.</li>
-      <li><b>Process all (N)</b> on a host's header row queues every unprocessed tool-ready artifact of that host with <code>/auto</code> — one launch every 3 seconds, each in its own wrapper window. Come back and rescan when the consoles are done.</li>
-      <li><b>[Open]</b> on a processed row hands the newest output straight back to the wrapper — no reprocessing.</li>
+      <li><b>Process all (N)</b> on a host's header row queues every unprocessed tool-ready artifact of that host with <code>/auto</code> - one launch every 3 seconds, each in its own wrapper window. Come back and rescan when the consoles are done.</li>
+      <li><b>[Open]</b> on a processed row hands the newest output straight back to the wrapper - no reprocessing.</li>
     </ul>
     <h3>Where outputs go</h3>
     <ul>
-      <li>All processing lands in <code>_Processed\&lt;Hostname&gt;\&lt;App&gt;\</code> <b>next to this app</b> (family convention — the wrappers use the same layout when run standalone). One folder per host per tool; the tools' datetime-stamped filenames keep repeat runs apart.</li>
-      <li><b>Target hostname</b> is required before processing. It is guessed from the scan (<code>Collection-&lt;host&gt;-…</code> segments or the folder layout) — overwrite it if wrong. Multi-host scans use each row's own detected host; the field covers rows whose host could not be derived.</li>
-      <li>An append-only manifest (<code>_Processed\artifact-finder-manifest.json</code>) ties every launch to its exact artifact path, and each wrapper writes a <code>runinfo.json</code> into its output folder after every run — so processed state survives even if the manifest is lost. Old-convention output (<code>&lt;scanRoot&gt;\_Processed\&lt;Host&gt;_&lt;Artifact&gt;_&lt;stamp&gt;</code>) is still recognised for status and [Open], never written.</li>
-      <li>The <b>Processed inventory</b> card (shown before any scan) is the hosts &times; tools view of that tree across all cases — click a cell to reopen the newest output in its wrapper. Each cell also shows the tool's own <b>triage headline</b> from its newest run (flagged count / max score; Hayabusa crit/high) — red means findings; hover for the top hits; <b>Copy triage summary</b> puts the per-host block on the clipboard for case notes.</li>
-      <li><b>IOC list</b> (toolkit strip — create/edit) opens a structured editor: <code>IOC.csv</code> holds <b>Value / Type / Note / Case</b> and is the editable source; on save the Finder flattens it to <code>IOC.txt</code> (one term per line, <code>#</code> comments), the file every wrapper auto-loads at launch and merges into its own IOC/keyword scoring. Hash/IPv4 values are auto-typed; legacy <code>IOC.txt</code> terms are imported on first edit so nothing is lost. One paste covers the whole engagement.</li>
+      <li>All processing lands in <code>_Processed\&lt;Hostname&gt;\&lt;App&gt;\</code> <b>next to this app</b> (family convention - the wrappers use the same layout when run standalone). One folder per host per tool; the tools' datetime-stamped filenames keep repeat runs apart.</li>
+      <li><b>Target hostname</b> is required before processing. It is guessed from the scan (<code>Collection-&lt;host&gt;-…</code> segments or the folder layout) - overwrite it if wrong. Multi-host scans use each row's own detected host; the field covers rows whose host could not be derived.</li>
+      <li>An append-only manifest (<code>_Processed\artifact-finder-manifest.json</code>) ties every launch to its exact artifact path, and each wrapper writes a <code>runinfo.json</code> into its output folder after every run - so processed state survives even if the manifest is lost. Old-convention output (<code>&lt;scanRoot&gt;\_Processed\&lt;Host&gt;_&lt;Artifact&gt;_&lt;stamp&gt;</code>) is still recognised for status and [Open], never written.</li>
+      <li>The <b>Processed inventory</b> card (shown before any scan) is the hosts &times; tools view of that tree across all cases - click a cell to reopen the newest output in its wrapper. Each cell also shows the tool's own <b>triage headline</b> from its newest run (flagged count / max score; Hayabusa crit/high) - red means findings; hover for the top hits; <b>Copy triage summary</b> puts the per-host block on the clipboard for case notes.</li>
+      <li><b>IOC list</b> (toolkit strip - create/edit) opens a structured editor: <code>IOC.csv</code> holds <b>Value / Type / Note / Case</b> and is the editable source; on save the Finder flattens it to <code>IOC.txt</code> (one term per line, <code>#</code> comments), the file every wrapper auto-loads at launch and merges into its own IOC/keyword scoring. Hash/IPv4 values are auto-typed; legacy <code>IOC.txt</code> terms are imported on first edit so nothing is lost. One paste covers the whole engagement.</li>
     </ul>
     <h3>Command line</h3>
     <p><code>mshta "DFIR-Artifact-Finder.hta" ["&lt;scanRoot&gt;"] [/scan] [/from:yyyy-MM-dd] [/to:yyyy-MM-dd]</code></p>
     <ul>
-      <li><code>&lt;scanRoot&gt;</code> — prefills the case folder. &nbsp; <code>/scan</code> — scan immediately on open.</li>
-      <li><code>/from:yyyy-MM-dd</code> <code>/to:yyyy-MM-dd</code> — prefills the <b>Case window</b> (UTC). It rides on every wrapper launch as <code>/from:/to:</code>, prefilling the wrapper's date filter; it is recorded in the manifest and runinfo and <b>never affects scoring</b>.</li>
-      <li>Wrappers are launched as <code>mshta "&lt;Tool&gt;-Wrapper.hta" "&lt;artifact&gt;" "&lt;outDir&gt;" [/auto] [/from:…] [/to:…]</code> — <b>bulk mode</b> adds <code>/auto</code> so they process on open; the <b>Case window</b> (if set) adds <code>/from:/to:</code>.</li>
+      <li><code>&lt;scanRoot&gt;</code> - prefills the case folder. &nbsp; <code>/scan</code> - scan immediately on open.</li>
+      <li><code>/from:yyyy-MM-dd</code> <code>/to:yyyy-MM-dd</code> - prefills the <b>Case window</b> (UTC). It rides on every wrapper launch as <code>/from:/to:</code>, prefilling the wrapper's date filter; it is recorded in the manifest and runinfo and <b>never affects scoring</b>.</li>
+      <li>Wrappers are launched as <code>mshta "&lt;Tool&gt;-Wrapper.hta" "&lt;artifact&gt;" "&lt;outDir&gt;" [/auto] [/from:…] [/to:…]</code> - <b>bulk mode</b> adds <code>/auto</code> so they process on open; the <b>Case window</b> (if set) adds <code>/from:/to:</code>.</li>
     </ul>
     <h3>Notes</h3>
     <ul>
-      <li>Status pills: &#9679; not processed &middot; &#9684; launched &middot; &#10004; processed &middot; &#10004;? legacy output found &middot; &mdash; no tool yet. Greyed rows are the roadmap (no wrapper yet).</li>
+      <li>Status pills: &#9679; not processed &middot; &#9684; launched &middot; &#10004; processed &middot; &#10004;? legacy output found &middot; - no tool yet. Greyed rows are the roadmap (no wrapper yet).</li>
       <li>Enumeration uses <code>dir /s /b</code> (long Velociraptor paths kill FSO recursion); <code>results\</code> JSON, <code>.idx</code> and hive-transaction sidecars are skipped as noise.</li>
-      <li>Velociraptor's <code>C%3A</code>-style paths are handled — launches don't go through cmd, so the <code>%</code> survives.</li>
-      <li>Columns are resizable — drag a header's right edge; double-click the edge to reset.</li>
+      <li>Velociraptor's <code>C%3A</code>-style paths are handled - launches don't go through cmd, so the <code>%</code> survives.</li>
+      <li>Columns are resizable - drag a header's right edge; double-click the edge to reset.</li>
     </ul>
-    <p class="muted" style="font-size:11px">MIT © 2026 Ben Morris — click the link above for the full README &amp; releases.</p>
+    <p class="muted" style="font-size:11px">MIT © 2026 Ben Morris - click the link above for the full README &amp; releases.</p>
   </div>
 </div>
 
 <div id="iocModal" class="modal hide" onclick="if((event.srcElement||{}).id==='iocModal')closeIocEditor()">
   <div class="mcard" style="max-width:920px">
     <span class="x" onclick="closeIocEditor()" title="Close">&times;</span>
-    <h2>IOC list editor <span class="muted" style="font-size:13px;font-weight:400">&mdash; IOC.csv &rarr; IOC.txt</span></h2>
-    <p><b>IOC.csv</b> (Value / Type / Note / Case) is the editable source of truth. On <b>Save</b> it is flattened to <b>IOC.txt</b> &mdash; one term per line &mdash; which every wrapper in the family auto-loads at launch. Type / Note / Case are Finder-side metadata; only <b>Value</b> reaches the wrappers.</p>
+    <h2>IOC list editor <span class="muted" style="font-size:13px;font-weight:400">- IOC.csv &rarr; IOC.txt</span></h2>
+    <p><b>IOC.csv</b> (Value / Type / Note / Case) is the editable source of truth. On <b>Save</b> it is flattened to <b>IOC.txt</b> - one term per line - which every wrapper in the family auto-loads at launch. Type / Note / Case are Finder-side metadata; only <b>Value</b> reaches the wrappers.</p>
     <div id="iocTblWrap"></div>
     <div style="margin-top:10px">
       <span class="btn sm" data-iocadd="1">+ Add row</span>
-      <span class="lnk" style="margin-left:14px" data-iocnp="1" title="Open the generated IOC.txt in Notepad (raw view — regenerated on the next Save)">Open IOC.txt in Notepad</span>
+      <span class="lnk" style="margin-left:14px" data-iocnp="1" title="Open the generated IOC.txt in Notepad (raw view - regenerated on the next Save)">Open IOC.txt in Notepad</span>
     </div>
     <div style="margin-top:14px">
       <span class="btn primary" data-iocsave="1">Save</span>
