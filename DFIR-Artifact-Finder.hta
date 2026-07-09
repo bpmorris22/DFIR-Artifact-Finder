@@ -47,7 +47,7 @@
 <style>
   html{margin:0;height:100%;background:#0d1117}
   body{margin:0;height:100%;background:#0d1117;color:#e6edf3;font-family:Segoe UI,Tahoma,sans-serif;font-size:16px}
-  #content{zoom:0.9}
+  #content{zoom:0.9;width:111.111%;box-sizing:border-box}
   a{color:#58a6ff}
   .mono{font-family:Consolas,"Courier New",monospace}
   .muted{color:#8b949e}
@@ -91,7 +91,7 @@
   tr.sel td{background:#1c2f4a}
   tr.grp td{background:#12233a;font-weight:600;color:#e6edf3;cursor:pointer;border-top:2px solid #30363d}
   tr.dim td{color:#6e7681}
-  .scroll{max-height:56vh;overflow:auto;border:1px solid #30363d;border-radius:8px}
+  .scroll{max-height:56vh;overflow:auto;border:1px solid #30363d;border-radius:8px;width:100%;box-sizing:border-box}
   .chip{display:inline-block;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:700;letter-spacing:.3px}
   .t-a{background:#10263f;color:#58a6ff}
   .t-b{background:#3a2a10;color:#f0883e}
@@ -111,10 +111,10 @@
   .tk .upd:hover{text-decoration:underline}
   .sumbad{color:#ff6b6b;font-size:10px;font-weight:600}
   .sumok{color:#3fb950;font-size:10px}
-  .dl{font-family:Consolas,"Courier New",monospace;font-size:11px;max-height:220px;overflow:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px;margin:4px 0;white-space:normal;word-break:break-word}
+  .dl{font-family:Consolas,"Courier New",monospace;font-size:11px;max-height:220px;overflow:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px;margin:4px 0;white-space:normal;word-break:break-word;width:100%;box-sizing:border-box}
   .dl div{margin:1px 0}
   .kv{color:#8b949e}
-  #log{white-space:pre-wrap;font-family:Consolas,monospace;font-size:11px;color:#8b949e;max-height:140px;overflow:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;display:none;margin-top:8px}
+  #log{white-space:pre-wrap;font-family:Consolas,monospace;font-size:11px;color:#8b949e;max-height:140px;overflow:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;display:none;margin-top:8px;width:100%;box-sizing:border-box}
   .hide{display:none}
   .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.66);z-index:1000;overflow:auto}
   .modal .mcard{max-width:780px;margin:36px auto;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:18px 22px}
@@ -245,7 +245,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.15.0";
+var APP_VERSION = "0.15.1";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace - survives a crash where the UI can't be seen; overwritten each launch */
@@ -1731,7 +1731,7 @@ function init(){
   // A± zooms #content only - zooming <body> made the header (and these buttons)
   // slide off-screen (which is what happened when body-zoom widened the header past the window edge).
   var zoom=0.9, zContent=$("content");
-  function applyZoom(){ zContent.style.zoom=zoom; var p=Math.round(zoom*100)+"%";
+  function applyZoom(){ zContent.style.zoom=zoom; zContent.style.width=(100/zoom)+"%"; var p=Math.round(zoom*100)+"%";
     $("fup").title="Larger text ("+p+")"; $("fdown").title="Smaller text ("+p+")"; }
   $("fup").onclick=function(){ zoom=Math.min(zoom+0.15,2.5); applyZoom(); };
   $("fdown").onclick=function(){ zoom=Math.max(zoom-0.15,0.6); applyZoom(); };
