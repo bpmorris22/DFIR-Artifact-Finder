@@ -245,7 +245,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.15.4";
+var APP_VERSION = "0.15.5";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace - survives a crash where the UI can't be seen; overwritten each launch */
@@ -1375,6 +1375,10 @@ function pickOpenTarget(row,dir){
   if(row.key==="srum"){                                        // SRUM: the exfil table is the headline
     var su=[]; for(i=0;i<csv.length;i++){ if(/networkusage/i.test(csv[i].name)) su.push(csv[i]); }
     if(su.length) pick=newest(su); }
+  if(row.key==="sqlite" || row.key==="sqlx"){                  // SQLECmd emits many tables (favicons/cookies/downloads/…); default to browsing history (the rich Visits view)
+    var hs=[]; for(i=0;i<csv.length;i++){ if(/HistoryVisits/i.test(csv[i].name)) hs.push(csv[i]); }
+    if(!hs.length) for(i=0;i<csv.length;i++){ if(/history/i.test(csv[i].name)) hs.push(csv[i]); }   // fall back to Edge NavigationHistory / Firefox History
+    if(hs.length) pick=newest(hs); }
   if(!pick) pick=newest(csv);
   return {path:pick.path, others:csv.length-1};
 }
