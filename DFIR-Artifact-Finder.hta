@@ -245,7 +245,7 @@
 <script language="JScript">
 "use strict";
 
-var APP_VERSION = "0.15.6";
+var APP_VERSION = "0.15.7";
 var GH_RAW = "https://raw.githubusercontent.com/bpmorris22/";       // + <repo>/main/<file>
 
 /* boot/error trace - survives a crash where the UI can't be seen; overwritten each launch */
@@ -502,6 +502,19 @@ function isNetworkPath(p){
     return fso.GetDrive(fso.GetDriveName(p)).DriveType===3;
   }catch(e){ return false; }
 }
+/* The .hta association points at 32-bit SysWOW64\mshta, so wrappers we launch inherit 32-bit too -
+   and a 32-bit mshta caps out around 2 GB, which the big parsers (MFTECmd $MFT/$J, Hayabusa, large
+   SRUM/EVTX) hit as OOM on busy servers. From a 32-bit process on 64-bit Windows, System32 silently
+   redirects back to the 32-bit binary; Sysnative is the only alias that reaches the real 64-bit mshta.
+   Genuine 32-bit Windows (no ARCHITEW6432) and an already-64-bit host both fall through to bare mshta. */
+function mshtaExe(){
+  try{ var sh=new ActiveXObject("WScript.Shell");
+    var a=sh.ExpandEnvironmentStrings("%PROCESSOR_ARCHITECTURE%");
+    var w=sh.ExpandEnvironmentStrings("%PROCESSOR_ARCHITEW6432%");
+    if(/x86/i.test(a) && !/^%/.test(w)) return sh.ExpandEnvironmentStrings("%windir%")+"\\Sysnative\\mshta.exe";
+  }catch(e){}
+  return "mshta.exe";
+}
 
 /* ---------- settings sidecar ---------- */
 function settingsPath(){ return TOOLDIR+"\\DFIR-Artifact-Finder.settings.json"; }
@@ -734,7 +747,7 @@ function openTargetInWrapper(cat, target){
     hta=WPATH[cat.wrapper]||"";
     if(!hta){ setStatus("Downloaded "+cat.wrapper+".hta but could not resolve it - see log.","err"); return; }
   }
-  var cmd='mshta.exe "'+hta+'" "'+target.path+'" "'+parentDir(target.path)+'"';
+  var cmd='"'+mshtaExe()+'" "'+hta+'" "'+target.path+'" "'+parentDir(target.path)+'"';
   try{ new ActiveXObject("WScript.Shell").Run(cmd,1,false); }
   catch(e){ setStatus("Could not launch "+cat.wrapper+": "+e.message,"err"); return; }
   appendLog("Open output: "+cmd);
@@ -1273,7 +1286,7 @@ function doProcess(row){
   if(!cat.cli){
     // tier B - wrapper lacks the CLI retrofit: open bare + path on clipboard
     try{ window.clipboardData.setData("Text", row.path); }catch(e){}
-    try{ sh.Run('mshta.exe "'+hta+'"',1,false); }
+    try{ sh.Run('"'+mshtaExe()+'" "'+hta+'"',1,false); }
     catch(e2){ setStatus("Could not launch "+cat.wrapper+": "+e2.message,"err"); return; }
     appendManifest({artifactPath:row.path, key:row.key, host:row.host, wrapper:cat.wrapper, outDir:"", launchedUtc:nowIso(), cmd:"(manual - no CLI yet)"});
     row.status="launch"; row.statusDate=nowIso().substring(0,16).replace("T"," ");
@@ -1306,7 +1319,7 @@ function launchCli(row, forceAuto){
   var outDir=TOOLDIR+"\\_Processed\\"+host+"\\"+appFor(cat);
   if(!ensureFolder(outDir)){ setStatus("Could not create output folder: "+outDir,"err"); return false; }
   var cw=caseWin(true);
-  var cmd='mshta.exe "'+hta+'" "'+row.path+'" "'+outDir+'"'+((forceAuto||$("optAuto").checked)?" /auto":"")+cw.args;
+  var cmd='"'+mshtaExe()+'" "'+hta+'" "'+row.path+'" "'+outDir+'"'+((forceAuto||$("optAuto").checked)?" /auto":"")+cw.args;
   try{ new ActiveXObject("WScript.Shell").Run(cmd,1,false); }
   catch(e3){ setStatus("Could not launch "+cat.wrapper+": "+e3.message,"err"); return false; }
   var ment={artifactPath:row.path, key:row.key, host:row.host, hostUsed:host, app:appFor(cat), wrapper:cat.wrapper, outDir:outDir, launchedUtc:nowIso(), cmd:cmd};
